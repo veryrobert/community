@@ -39,19 +39,24 @@ export function useStore(userId: string | undefined) {
   const load = useCallback(async () => {
     if (!userId) return
     try {
-      const [members, community, goals, tags, ideas, updates] = await Promise.all([
-        supabase.from('profiles').select('id, email, name, role, avatar_url, notify_comments, notify_status, notify_ideas, organisation, job_title, design_area, linkedin, bio, in_directory, show_email').order('name').then(check),
+      // Emails come separately: the database only gives out your own, those members chose to show,
+      // and (to facilitators) everyone's. The rest are left blank.
+      const [profiles, emails, community, goals, tags, ideas, updates] = await Promise.all([
+        supabase.from('profiles').select('id, name, role, avatar_url, notify_comments, notify_status, notify_ideas, organisation, job_title, design_area, linkedin, bio, in_directory, show_email').order('name').then(check),
+        supabase.rpc('member_emails').then(check),
         supabase.from('community').select('name, vision, about, guidelines, conduct').single().then(check),
         supabase.from('goals').select('*').order('position').then(check),
         supabase.from('tags').select('*').order('position').order('name').then(check),
         supabase.from('idea_list').select('*').order('created_at', { ascending: false }).then(check),
         supabase.from('updates').select('id, title, body, created_at, update_ideas(idea_id)').order('created_at', { ascending: false }).then(check),
       ])
-      const me = (members as Profile[]).find(m => m.id === userId)
+      const emailOf = new Map((emails as { id: string; email: string }[]).map(e => [e.id, e.email]))
+      const members = (profiles as Omit<Profile, 'email'>[]).map(p => ({ ...p, email: emailOf.get(p.id) ?? '' })) as Profile[]
+      const me = members.find(m => m.id === userId)
       if (!me) throw new Error('Your account isn’t set up. Ask a facilitator to invite you again.')
       setStore({
         me,
-        members: members as Profile[],
+        members,
         community: community as Community,
         goals: goals as Goal[],
         tags: tags as Tag[],
@@ -124,9 +129,9 @@ export async function setStatus(id: number, status: Status, note: string | null,
 }
 
 export async function loadPeople(ideaId: number) {
-  const rows = check(await supabase.from('idea_people').select('user_id, role, created_at, profiles(name, email)').eq('idea_id', ideaId).order('created_at')) as unknown as
-    { user_id: string; role: IdeaRole; profiles: { name: string | null; email: string } }[]
-  return rows.map(r => ({ user_id: r.user_id, role: r.role, name: displayName(r.profiles) })) as Person[]
+  const rows = check(await supabase.from('idea_people').select('user_id, role, created_at, profiles(name)').eq('idea_id', ideaId).order('created_at')) as unknown as
+    { user_id: string; role: IdeaRole; profiles: { name: string | null } }[]
+  return rows.map(r => ({ user_id: r.user_id, role: r.role, name: displayName({ name: r.profiles.name, email: '' }) })) as Person[]
 }
 
 export async function joinIdea(ideaId: number, userId: string, role: IdeaRole) {

@@ -94,14 +94,14 @@ function Person({ m, me }: { m: Profile; me: boolean }) {
           <p className="text-xs text-muted-foreground">{[m.job_title, m.design_area].filter(Boolean).join(' · ')}</p>
         )}
         {m.bio && <p className="pt-1 text-sm text-muted-foreground">{m.bio}</p>}
-        {(m.linkedin || m.show_email) && (
+        {(m.linkedin || (m.show_email && m.email)) && (
           <p className="flex flex-wrap gap-4 pt-1 text-xs text-muted-foreground">
             {m.linkedin && (
               <a href={m.linkedin} target="_blank" rel="noopener noreferrer" className={links}>
                 LinkedIn<ArrowUpRight className="size-3.5" strokeWidth={1.5} aria-hidden />
               </a>
             )}
-            {m.show_email && (
+            {m.show_email && m.email && (
               <a href={`mailto:${m.email}`} className={links}>
                 <Mail className="size-3.5" strokeWidth={1.5} aria-hidden />{m.email}
               </a>

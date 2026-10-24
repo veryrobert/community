@@ -366,7 +366,7 @@ create trigger guard_comment before update on comments
 create view idea_list with (security_invoker = true) as
 select
   i.*,
-  coalesce(p.name, split_part(p.email, '@', 1)) as author_name,
+  coalesce(p.name, 'Member') as author_name,
   -- Support from duplicates counts toward the idea they duplicate, each person once.
   -- Counted, not moved, so marking something a duplicate by mistake loses nothing.
   (select count(distinct v.user_id) from votes v
@@ -375,11 +375,11 @@ select
   exists (select 1 from votes v where v.user_id = auth.uid()
     and (v.idea_id = i.id or v.idea_id in (select d.id from ideas d where d.merged_into = i.id))) as voted,
   (select count(*) from ideas d where d.merged_into = i.id)::int as duplicate_count,
-  (select coalesce(sp.name, split_part(sp.email, '@', 1)) from profiles sp where sp.id = i.status_by) as status_by_name,
+  (select coalesce(sp.name, 'Member') from profiles sp where sp.id = i.status_by) as status_by_name,
   array(select it.tag_id from idea_tags it where it.idea_id = i.id order by it.tag_id) as tag_ids,
   (select ip.role from idea_people ip where ip.idea_id = i.id and ip.user_id = auth.uid()) as my_role,
   array(
-    select coalesce(lp.name, split_part(lp.email, '@', 1))
+    select coalesce(lp.name, 'Member')
     from idea_people ip join profiles lp on lp.id = ip.user_id
     where ip.idea_id = i.id and ip.role = 'lead'
     order by ip.created_at
@@ -389,7 +389,7 @@ left join profiles p on p.id = i.author_id;
 
 create view comment_list with (security_invoker = true) as
 select c.*,
-  coalesce(p.name, split_part(p.email, '@', 1)) as author_name,
+  coalesce(p.name, 'Member') as author_name,
   p.avatar_url as author_avatar,
   (select count(*) from comment_likes l where l.comment_id = c.id)::int as like_count,
   exists (select 1 from comment_likes l where l.comment_id = c.id and l.user_id = auth.uid()) as liked
@@ -521,9 +521,25 @@ begin
   end loop;
 end $$;
 
+-- Emails are private unless a member shows them: members can read every profile column but email,
+-- and member_emails() returns their own, facilitators get everyone's, and everyone gets those shown
+revoke select on profiles from authenticated;
+grant select (id, name, avatar_url, role, notify_comments, notify_status, notify_ideas, organisation, job_title,
+  design_area, linkedin, bio, in_directory, show_email, created_at) on profiles to authenticated;
+
+create function member_emails() returns table (id uuid, email text)
+language sql stable security definer set search_path = public as $$
+  select p.id, p.email from profiles p
+  where is_member() and two_factor_ok() and signed_in_recently()
+    and (p.id = auth.uid() or p.show_email or is_facilitator())
+$$;
+revoke all on function member_emails() from public, anon;
+grant execute on function member_emails() to authenticated;
+
 -- Live updates: the app reloads when any of these change. Realtime respects the policies above.
+-- Profiles stay out: live updates send whole rows, email included.
 alter publication supabase_realtime add table
-  ideas, votes, comments, comment_likes, idea_people, idea_tags, tags, goals, updates, update_ideas, community, profiles;
+  ideas, votes, comments, comment_likes, idea_people, idea_tags, tags, goals, updates, update_ideas, community;
 
 -- Profile photos. A public bucket, so pictures load without signing each URL, but files sit under
 -- random names in each member's own folder, and only that member can write there.

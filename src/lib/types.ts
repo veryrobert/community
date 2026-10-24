@@ -97,8 +97,9 @@ export type Update = {
 
 export type Invite = { email: string; role: Role; created_at: string }
 
+// A member's name, or the start of their email if it's one you can see, or Member
 export function displayName(p: Pick<Profile, 'name' | 'email'>) {
-  return p.name || p.email.split('@')[0]
+  return p.name || p.email.split('@')[0] || 'Member'
 }
 
 const day = new Intl.DateTimeFormat('en-IE', { day: 'numeric', month: 'short' })
