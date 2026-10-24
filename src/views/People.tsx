@@ -9,11 +9,11 @@ import {
 import { displayName, type Profile } from '@/lib/types'
 import type { Store } from '@/lib/data'
 
-const NO_ORG = '' // people without an organisation come last, under no heading
+const NO_ORG = '' // people who haven't given one
 const ALL = '*'
 
-// The member directory: everyone who hasn't opted out, grouped by organisation, with what they've
-// chosen to share. Search covers names, organisations, titles, areas and bios.
+// The member directory: everyone who hasn't opted out, A to Z, with what they've chosen to share.
+// Filter by organisation; search covers names, organisations, titles, areas and bios.
 export function People({ store }: { store: Store }) {
   const [query, setQuery] = useState('')
   const [org, setOrg] = useState(ALL)
@@ -26,15 +26,14 @@ export function People({ store }: { store: Store }) {
     return [...count].sort((a, b) => (a[0] === NO_ORG ? 1 : b[0] === NO_ORG ? -1 : b[1] - a[1] || a[0].localeCompare(b[0])))
   }, [listed])
 
-  const groups = useMemo(() => {
+  const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const shown = listed.filter(m =>
-      (org === ALL || (m.organisation || NO_ORG) === org) &&
-      (!q || [displayName(m), m.organisation, m.job_title, m.design_area, m.bio].some(v => v.toLowerCase().includes(q))))
-    return orgs
-      .map(([o]) => [o, shown.filter(m => (m.organisation || NO_ORG) === o).sort((a, b) => displayName(a).localeCompare(displayName(b)))] as const)
-      .filter(([, people]) => people.length)
-  }, [listed, orgs, org, query])
+    return listed
+      .filter(m =>
+        (org === ALL || (m.organisation || NO_ORG) === org) &&
+        (!q || [displayName(m), m.organisation, m.job_title, m.design_area, m.bio].some(v => v.toLowerCase().includes(q))))
+      .sort((a, b) => displayName(a).localeCompare(displayName(b)))
+  }, [listed, org, query])
 
   const bar = 'inline-flex h-10 items-center gap-2 rounded-full px-3 text-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:text-foreground'
   return (
@@ -66,16 +65,9 @@ export function People({ store }: { store: Store }) {
         <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search people" aria-label="Search people" enterKeyHint="search" type="search" />
       </div>
 
-      {groups.length ? groups.map(([o, people]) => (
-        <section key={o} className="pt-8">
-          {o !== NO_ORG && (
-            <h2 className="flex items-baseline justify-between px-1 pb-1 text-xs text-muted-foreground">
-              {o}<span className="font-mono tabular-nums">{people.length}</span>
-            </h2>
-          )}
-          <ul>{people.map(m => <Person key={m.id} m={m} me={m.id === store.me.id} />)}</ul>
-        </section>
-      )) : (
+      {shown.length ? (
+        <ul className="pt-6">{shown.map(m => <Person key={m.id} m={m} me={m.id === store.me.id} />)}</ul>
+      ) : (
         <p className="px-1 pt-8 text-sm text-muted-foreground">{listed.length ? 'Nobody matches that.' : 'Nobody is listed yet.'}</p>
       )}
     </div>
@@ -90,13 +82,16 @@ function Person({ m, me }: { m: Profile; me: boolean }) {
       <div className="flex items-center gap-4">
         <Avatar name={displayName(m)} url={m.avatar_url} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <p className="text-sm text-foreground">
-            {displayName(m)}
-            {me && <span className="text-muted-foreground"> (you)</span>}
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
+            <span>{displayName(m)}{me && <span className="text-muted-foreground"> (you)</span>}</span>
+            {m.role === 'facilitator' && (
+              <span className="rounded-full border border-border px-2 py-px text-xs text-muted-foreground">Facilitator</span>
+            )}
           </p>
-          {(m.job_title || m.design_area) && (
-            <p className="text-xs text-muted-foreground">{[m.job_title, m.design_area].filter(Boolean).join(' · ')}</p>
+          {(m.job_title || m.organisation) && (
+            <p className="text-xs text-muted-foreground">{[m.job_title, m.organisation].filter(Boolean).join(', ')}</p>
           )}
+          {m.design_area && <p className="text-xs text-muted-foreground">{m.design_area}</p>}
         </div>
       </div>
       <div className="flex flex-col gap-1 pl-14 empty:hidden">
