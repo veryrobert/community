@@ -122,12 +122,13 @@ create table invite_requests (
   created_at timestamptz not null default now()
 );
 
--- Things to email about. Triggers add rows; the notify Edge Function sends them.
--- No policies, so members can neither read nor write it.
+-- Things to email about. Triggers add rows; the notify Edge Function sends them. Invites carry the
+-- invited address in email instead of an idea. No policies, so members can neither read nor write it.
 create table outbox (
   id bigint generated always as identity primary key,
-  kind text not null check (kind in ('comment', 'status', 'idea')),
-  idea_id bigint not null references ideas on delete cascade,
+  kind text not null check (kind in ('comment', 'status', 'idea', 'invite')),
+  idea_id bigint references ideas on delete cascade,
+  email text,
   comment_id bigint references comments on delete cascade,
   actor_id uuid references profiles on delete set null,
   created_at timestamptz not null default now(),
@@ -286,6 +287,16 @@ end $$;
 
 create trigger queue_comment after insert on comments
   for each row execute function queue_comment();
+
+create function queue_invite() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into outbox (kind, email, actor_id) values ('invite', new.email, auth.uid());
+  return new;
+end $$;
+
+create trigger queue_invite after insert on invites
+  for each row execute function queue_invite();
 
 create function queue_idea() returns trigger
 language plpgsql security definer set search_path = public as $$

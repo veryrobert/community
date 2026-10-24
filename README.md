@@ -47,7 +47,7 @@ That opens the real app on sample data held in the browser. Every code is 123456
 
 ## How it works
 
-- **Invites.** People ask to join from the About page (linked from sign-in), or a facilitator adds their email in Admin › People. Either way the facilitator sends them the site's address. They sign in with GitHub or an emailed code, set up an authenticator, and give their name.
+- **Invites.** People ask to join from How to join (linked from sign-in), or a facilitator adds their email in Admin › People. Either way they're emailed an invitation with the site's address and how to sign in (needs the `notify` function from step 5). They sign in with GitHub or an emailed code, set up an authenticator, and give their name.
 - **Roles.** Members post, support, comment and like, and edit or delete their own ideas and comments. Facilitators also change statuses with a note, mark duplicates, hide comments, publish updates, run Admin, invite people and change roles. Row level security and triggers in `schema.sql` enforce this; the interface only hides what you can't do.
 - **The board.** Ordered Top (most support) by default, or Newest, Updated or Most comments; filtered by status, tags and Following (ideas you posted, supported or commented on). Search opens from the top bar.
 - **Tags.** One shared list kept by facilitators in Admin, at most 20. Members tag their ideas from it, up to 3 each, and can't create tags. Names are tidied and unique regardless of case; the database enforces all three limits.

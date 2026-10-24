@@ -156,7 +156,7 @@ export function Facilitation({ store, onChanged, section }: { store: Store; onCh
             </li>
           ))}
         </ul>
-        <p className="px-1 text-xs text-muted-foreground">Tap a request to invite or decline. Invited people still need this site’s address from you.</p>
+        <p className="px-1 text-xs text-muted-foreground">Tap a request to invite or decline. Inviting someone emails them the site’s address and how to sign in.</p>
       </FieldGroup>
       )}
       {section === 'people' && (
