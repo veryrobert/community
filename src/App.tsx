@@ -293,7 +293,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
         {view === 'ideas' && <Board key={homes} store={store} onOpen={open} onVote={vote} searching={searching} onHome={home} />}
         {view === 'roadmap' && <Roadmap store={store} onOpen={open} openId={openIdea} onError={setFlash} />}
         {view === 'updates' && <Updates store={store} onOpen={open} onChanged={load} />}
-        {view === 'people' && <People store={store} />}
+        {view === 'people' && <People store={store} onEditMe={() => setPanel({ kind: 'settings' })} />}
         {view === 'about' && <About community={store.community} signedIn />}
         {view === 'admin' && (facilitator ? <Admin store={store} onChanged={load} /> : <p className="mx-auto max-w-2xl px-5 text-sm text-muted-foreground">Only facilitators can see this.</p>)}
         </>)}

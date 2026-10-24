@@ -14,7 +14,7 @@ const ALL = '*'
 
 // The member directory: everyone who hasn't opted out, A to Z, with what they've chosen to share.
 // Filter by organisation; search covers names, organisations, titles, areas and bios.
-export function People({ store }: { store: Store }) {
+export function People({ store, onEditMe }: { store: Store; onEditMe: () => void }) {
   const [query, setQuery] = useState('')
   const [org, setOrg] = useState(ALL)
   const listed = useMemo(() => store.members.filter(m => m.in_directory), [store.members])
@@ -66,7 +66,7 @@ export function People({ store }: { store: Store }) {
       </div>
 
       {shown.length ? (
-        <ul className="pt-6">{shown.map(m => <Person key={m.id} m={m} me={m.id === store.me.id} />)}</ul>
+        <ul className="pt-6">{shown.map(m => <Person key={m.id} m={m} me={m.id === store.me.id} onEditMe={onEditMe} />)}</ul>
       ) : (
         <p className="px-1 pt-8 text-sm text-muted-foreground">{listed.length ? 'Nobody matches that.' : 'Nobody is listed yet.'}</p>
       )}
@@ -74,7 +74,7 @@ export function People({ store }: { store: Store }) {
   )
 }
 
-function Person({ m, me }: { m: Profile; me: boolean }) {
+function Person({ m, me, onEditMe }: { m: Profile; me: boolean; onEditMe: () => void }) {
   const links = 'inline-flex items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
   return (
     <li className="flex flex-col gap-2 border-t border-border py-4">
@@ -83,7 +83,11 @@ function Person({ m, me }: { m: Profile; me: boolean }) {
         <Avatar name={displayName(m)} url={m.avatar_url} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
-            <span>{displayName(m)}{me && <span className="text-muted-foreground"> (you)</span>}</span>
+            {me ? (
+              <button type="button" onClick={onEditMe} title="Edit your profile" className="rounded-sm text-left outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                {displayName(m)}<span className="text-muted-foreground"> (you)</span>
+              </button>
+            ) : <span>{displayName(m)}</span>}
             {m.role === 'facilitator' && (
               <span className="rounded-full border border-border px-2 py-px text-xs text-muted-foreground">Facilitator</span>
             )}

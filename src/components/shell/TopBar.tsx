@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { LogOut, Search, SlidersHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar } from './Avatar'
 import { PANEL_W } from './layout'
@@ -68,10 +68,11 @@ export function TopBar({ name, onHome, places, admin, me, onSettings, onSignOut,
             <Avatar name={me.name} url={me.avatar} className="size-8" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-56">
-            <DropdownMenuLabel className="flex flex-col gap-0.5 font-normal">
+            {/* Your name opens your profile, the same as Settings */}
+            <DropdownMenuItem onSelect={onSettings} className="flex-col items-start gap-0.5 py-2">
               <span className="text-sm text-foreground">{me.name}</span>
-              <span className="truncate text-xs text-muted-foreground">{me.email}</span>
-            </DropdownMenuLabel>
+              <span className="max-w-full truncate text-xs text-muted-foreground">{me.email}</span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onSettings} className="h-10 gap-3">
               <SlidersHorizontal className="size-4" strokeWidth={1.5} aria-hidden />
