@@ -218,6 +218,9 @@
   .page-in { animation: none; }
 }
 
+/* Links iOS adds itself to emails and numbers look like the text around them */
+a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font: inherit !important; }
+
 /* Markdown in ideas, comments and updates (components/shell/Markdown.tsx) */
 .md > * + * { margin-top: 0.75em; }
 .md a { text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 4px; }
