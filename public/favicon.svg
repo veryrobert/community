@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- The loader's Venn diagram (App.tsx), dark on light tab bars, light on dark ones -->
+  <style>
+    g { stroke: #0a0a0a; }
+    @media (prefers-color-scheme: dark) { g { stroke: #f2efe9; } }
+  </style>
+  <g fill="none" stroke-width="2" stroke-linecap="round">
+    <path d="M12 8a8 8 0 1 0 0 16a8 8 0 1 0 0-16" />
+    <path d="M20 8a8 8 0 1 1 0 16a8 8 0 1 1 0-16" />
+  </g>
+</svg>

@@ -1,0 +1,346 @@
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { ArrowRight, Check, Columns3, Ellipsis, Info, Shield, Lightbulb, Megaphone, Plus, Share2 } from 'lucide-react'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DialogsProvider, useDialogs } from '@/components/shell/Dialogs'
+import { Button } from '@/components/ui/button'
+import { ToolButton } from '@/components/shell/ToolButton'
+import { Toolbar } from '@/components/shell/Toolbar'
+import { Splash } from '@/components/shell/Splash'
+import { TopBar } from '@/components/shell/TopBar'
+import { SendField } from '@/components/shell/SendField'
+import { PanelSheet } from '@/components/shell/PanelSheet'
+import { ActionDock } from '@/components/shell/ActionDock'
+import { PANEL_W, SAFE_BOTTOM, usePhone } from '@/components/shell/layout'
+import { configured } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
+import { deleteIdea, saveName, signOut, useSession, useStore, type Store } from '@/lib/data'
+import { useGate, useSessionLimits } from '@/lib/auth'
+import { TwoFactorSetup, TwoFactorVerify } from '@/views/TwoFactor'
+import { displayName, type Idea } from '@/lib/types'
+import { SignIn } from '@/views/SignIn'
+import { Board } from '@/views/Board'
+import { Roadmap } from '@/views/Roadmap'
+import { Updates } from '@/views/Updates'
+import { Admin } from '@/views/Admin'
+import { About } from '@/views/About'
+import { IdeaSheet, StatusEditor } from '@/sheets/IdeaSheet'
+import { IdeaPage } from '@/sheets/IdeaPage'
+import { NewIdea } from '@/sheets/IdeaForm'
+import { UPDATE_FORM, UpdateForm } from '@/sheets/UpdateForm'
+import { Settings } from '@/sheets/Settings'
+
+type View = 'ideas' | 'roadmap' | 'updates' | 'about' | 'admin'
+type Panel =
+  | { kind: 'idea'; id: number; editing?: boolean }
+  | { kind: 'status'; id: number }
+  | { kind: 'new-idea' }
+  | { kind: 'new-update' }
+  | { kind: 'settings' }
+
+// The address is #view or #view/ideaId, so an idea can be linked to
+function readHash(): { view: View; idea: number | null } {
+  const [v, id] = location.hash.slice(1).split('/')
+  const view: View = v === 'roadmap' || v === 'updates' || v === 'about' || v === 'admin' ? v : 'ideas'
+  return { view, idea: id && /^\d+$/.test(id) ? Number(id) : null }
+}
+
+function writeHash(view: View, idea: number | null) {
+  const next = `#${view}${idea ? `/${idea}` : ''}`
+  if (location.hash !== next) history.replaceState(null, '', next)
+}
+
+const mark = (
+  <Splash label="Loading">
+    {/* A Venn diagram: two circles of practice, overlapping */}
+    <path pathLength={1} d="M12 8a8 8 0 1 0 0 16a8 8 0 1 0 0-16" />
+    <path pathLength={1} d="M20 8a8 8 0 1 1 0 16a8 8 0 1 1 0-16" />
+  </Splash>
+)
+
+export default function App() {
+  const session = useSession()
+  return (
+    <TooltipProvider delayDuration={400}>
+      <DialogsProvider>
+      {mark}
+      {!configured ? (
+        <Message>Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local, then restart the dev server.</Message>
+      ) : session === undefined ? null : session ? (
+        <Gated userId={session.user.id} />
+      ) : (
+        <SignIn />
+      )}
+      </DialogsProvider>
+    </TooltipProvider>
+  )
+}
+
+// Nothing loads until the session has passed two-factor; the database enforces the same rule
+function Gated({ userId }: { userId: string }) {
+  const { gate, recheck } = useGate(userId)
+  if (gate === 'loading') return null
+  if (gate === 'enroll') return <TwoFactorSetup onDone={recheck} />
+  if (gate === 'verify') return <TwoFactorVerify onDone={recheck} />
+  return <Signed userId={userId} />
+}
+
+function Signed({ userId }: { userId: string }) {
+  const { store, error, load, vote } = useStore(userId)
+  useSessionLimits()
+  if (error && !store) {
+    return (
+      <Message>
+        {error}
+        <Button variant="outline" onClick={() => signOut()} className="mt-4">Sign out</Button>
+      </Message>
+    )
+  }
+  if (!store) return null
+  if (!store.me.name) return <Welcome store={store} onDone={load} />
+  return <Main store={store} load={load} vote={vote} />
+}
+
+function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; vote: (i: Idea) => void }) {
+  const phone = usePhone()
+  const initial = readHash()
+  const [view, setView] = useState<View>(initial.view)
+  const [panel, setPanel] = useState<Panel | null>(initial.idea ? { kind: 'idea', id: initial.idea } : null)
+  const [flash, setFlash] = useState<string | null>(null)
+  const facilitator = store.me.role === 'facilitator'
+  const name = store.community.name
+  const { confirm } = useDialogs()
+
+  useEffect(() => { document.title = store.community.name || 'community' }, [store.community.name])
+
+  const openIdea = panel?.kind === 'idea' || panel?.kind === 'status' ? panel.id : null
+  useEffect(() => writeHash(view, openIdea), [view, openIdea])
+  useEffect(() => {
+    const on = () => {
+      const h = readHash()
+      setView(h.view)
+      setPanel(h.idea ? { kind: 'idea', id: h.idea } : null)
+    }
+    addEventListener('hashchange', on)
+    return () => removeEventListener('hashchange', on)
+  }, [])
+
+  useEffect(() => {
+    if (!flash) return
+    const t = setTimeout(() => setFlash(null), 2400)
+    return () => clearTimeout(t)
+  }, [flash])
+
+  // Opening an idea replaces the view; back returns to the same scroll position
+  const mainRef = useRef<HTMLElement>(null)
+  const scrollMemo = useRef(0)
+  const open = useCallback((id: number) => {
+    if (panel?.kind !== 'idea' && panel?.kind !== 'status' && mainRef.current) scrollMemo.current = mainRef.current.scrollTop
+    setPanel({ kind: 'idea', id })
+    mainRef.current?.scrollTo({ top: 0 })
+  }, [panel])
+  const back = () => setPanel(null)
+  useLayoutEffect(() => {
+    if (panel === null && mainRef.current) mainRef.current.scrollTop = scrollMemo.current
+  }, [panel])
+  // Closing the status panel goes back to its idea; closing anything else goes back to the list
+  const close = () => setPanel(p => p?.kind === 'status' ? { kind: 'idea', id: p.id } : null)
+
+  const idea = panel?.kind === 'idea' || panel?.kind === 'status' ? store.ideas.find(i => i.id === panel.id) : undefined
+  const editing = panel?.kind === 'idea' && !!panel.editing
+  const canEdit = !!idea && (facilitator || idea.author_id === store.me.id)
+  const title =
+    panel?.kind === 'settings' ? 'Settings'
+    : panel?.kind === 'new-idea' ? 'New idea'
+    : panel?.kind === 'new-update' ? 'New update'
+    : panel?.kind === 'status' ? 'Status'
+    : undefined
+  const sheetOpen = panel !== null && panel.kind !== 'idea'
+
+  // The phone's share sheet where there is one; otherwise copy the link
+  async function share() {
+    if (!idea) return
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+      try { await navigator.share({ title: idea.title, url: `${location.origin}${location.pathname}#ideas/${idea.id}` }) } catch { /* dismissed */ }
+      return
+    }
+    copyLink()
+  }
+
+  async function copyLink() {
+    if (!idea) return
+    try {
+      await navigator.clipboard.writeText(`${location.origin}${location.pathname}#${view}/${idea.id}`)
+      setFlash('Link copied')
+    } catch {
+      setFlash('Couldn’t copy the link')
+    }
+  }
+
+  async function removeIdea() {
+    if (!idea) return
+    const ok = await confirm({
+      title: 'Delete idea?',
+      body: facilitator && idea.author_id !== store.me.id
+        ? 'Its comments, support and people go with it, and this can’t be undone. To close it with a reason instead, set its status to Not proceeding or Duplicate.'
+        : 'Its comments, support and people go with it. This can’t be undone.',
+      action: 'Delete idea',
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      await deleteIdea(idea.id)
+      close()
+      load()
+      setFlash('Idea deleted')
+    } catch (e) {
+      setFlash((e as Error).message)
+    }
+  }
+
+  // The panel header holds the panel's one action, beside close: a check to post, publish or
+  // finish editing; otherwise a ⋯ menu as on a GitHub issue, with the destructive item last
+  const done = 'size-8 bg-primary text-primary-foreground hover:bg-primary/80 [&_svg]:size-4'
+  const sheetAction =
+    panel?.kind === 'new-update' ? <ToolButton icon={Check} label="Publish update" side="bottom" type="submit" form={UPDATE_FORM} className={done} />
+    : undefined
+  const ideaAction =
+    panel?.kind === 'idea' && editing ? <ToolButton icon={Check} label="Done" side="bottom" className={done} onClick={() => setPanel({ kind: 'idea', id: panel.id })} />
+    : panel?.kind === 'idea' && idea ? (
+      <div className="flex items-center gap-1">
+      <ToolButton icon={Share2} label="Share" side="bottom" className="size-8 [&_svg]:size-4" onClick={share} />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <span><ToolButton icon={Ellipsis} label="Idea options" side="bottom" className="size-8 [&_svg]:size-4" /></span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-40">
+          {canEdit && <DropdownMenuItem onSelect={() => setPanel({ kind: 'idea', id: idea.id, editing: true })}>Edit</DropdownMenuItem>}
+          {facilitator && <DropdownMenuItem onSelect={() => setPanel({ kind: 'status', id: idea.id })}>Change status</DropdownMenuItem>}
+          <DropdownMenuItem onSelect={copyLink}>Copy link</DropdownMenuItem>
+          {canEdit && (<>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onSelect={removeIdea}>Delete</DropdownMenuItem>
+          </>)}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      </div>
+    )
+    : undefined
+
+  const places = ([
+    { id: 'ideas', label: 'Ideas', icon: Lightbulb },
+    { id: 'roadmap', label: 'Roadmap', icon: Columns3 },
+    { id: 'updates', label: 'Updates', icon: Megaphone },
+    { id: 'about', label: 'About', icon: Info },
+    ...(facilitator ? [{ id: 'admin', label: 'Admin', icon: Shield }] as const : []),
+  ] as const).map(p => ({ ...p, active: view === p.id && panel?.kind !== 'idea', onClick: () => { setView(p.id); if (panel?.kind === 'idea') setPanel(null) } }))
+
+  // Home is the ideas list in its default view: a new key resets its order, filters and search
+  const [homes, setHomes] = useState(0)
+  function home() {
+    setView('ideas')
+    setPanel(null)
+    setSearching(false)
+    setHomes(h => h + 1)
+    mainRef.current?.scrollTo({ top: 0 })
+  }
+
+  // Search lives on the ideas list; from anywhere else it goes there first
+  const [searching, setSearching] = useState(false)
+  function toggleSearch() {
+    if (view !== 'ideas' || openIdea !== null) {
+      setView('ideas')
+      setPanel(null)
+      setSearching(true)
+    } else setSearching(s => !s)
+    mainRef.current?.scrollTo({ top: 0 })
+  }
+
+  // New idea only on the ideas list; New update on Updates for facilitators; nothing elsewhere
+  const action =
+    view === 'ideas' ? { label: 'New idea', onClick: () => setPanel({ kind: 'new-idea' }) }
+    : view === 'updates' && facilitator ? { label: 'New update', onClick: () => setPanel({ kind: 'new-update' }) }
+    : null
+
+  return (
+    <>
+      <main
+        ref={mainRef}
+        // With a panel open the page fades and blurs behind it, so the panel is a place of its own
+        className={cn('fixed inset-0 overflow-y-auto [transition:right_200ms_ease-out,opacity_500ms_cubic-bezier(0.25,0.1,0.25,1),filter_500ms_cubic-bezier(0.25,0.1,0.25,1)] motion-reduce:transition-none',
+          sheetOpen && 'opacity-45 blur-[2px]')}
+        style={phone
+          ? { paddingTop: 'calc(env(safe-area-inset-top, 0px) + 72px)', paddingBottom: `calc(${SAFE_BOTTOM} + 96px)` }
+          : { right: sheetOpen ? PANEL_W : 0, paddingTop: 96, paddingBottom: 112 }}
+      >
+        {/* Keyed by where you are, so each change of page plays its entrance (see .page-in in index.css) */}
+        <div key={openIdea !== null ? `idea-${openIdea}` : view} className="page-in" data-push={openIdea !== null || undefined}>
+        {panel?.kind === 'idea' || panel?.kind === 'status' ? (
+          <IdeaPage onBack={back} actions={ideaAction}>
+            {idea ? (
+              <IdeaSheet key={idea.id} idea={idea} store={store} editing={editing} onVote={vote} onOpen={open} onChanged={load} copyLink={copyLink} />
+            ) : (
+              <p className="text-sm text-muted-foreground">This idea has been deleted.</p>
+            )}
+          </IdeaPage>
+        ) : (<>
+        {view === 'ideas' && <Board key={homes} store={store} onOpen={open} onVote={vote} searching={searching} onHome={home} />}
+        {view === 'roadmap' && <Roadmap store={store} onOpen={open} openId={openIdea} onError={setFlash} />}
+        {view === 'updates' && <Updates store={store} onOpen={open} onChanged={load} />}
+        {view === 'about' && <About community={store.community} signedIn />}
+        {view === 'admin' && (facilitator ? <Admin store={store} onChanged={load} /> : <p className="mx-auto max-w-2xl px-5 text-sm text-muted-foreground">Only facilitators can see this.</p>)}
+        </>)}
+        </div>
+      </main>
+
+      <TopBar name={name} onHome={home} places={places}
+        me={{ name: displayName(store.me), email: store.me.email, avatar: store.me.avatar_url }} onSettings={() => setPanel({ kind: 'settings' })} onSignOut={() => signOut()}
+        searching={searching && view === 'ideas' && openIdea === null}
+        onSearch={toggleSearch} phone={phone} panelOpen={sheetOpen} />
+
+      <PanelSheet open={sheetOpen} title={title} action={sheetAction} onClose={close} phone={phone}>
+        {panel?.kind === 'new-idea' && (
+          <NewIdea store={store} onOpen={open} onPosted={id => { load().then(() => setPanel({ kind: 'idea', id })); setFlash('Idea posted') }} />
+        )}
+        {panel?.kind === 'new-update' && (
+          <UpdateForm store={store} onDone={() => { load(); close(); setFlash('Update published') }} />
+        )}
+        {panel?.kind === 'settings' && <Settings store={store} onChanged={load} />}
+        {panel?.kind === 'status' && idea && <StatusEditor key={idea.id} idea={idea} store={store} onSaved={load} />}
+      </PanelSheet>
+
+      <ActionDock phone={phone} panelOpen={sheetOpen}>
+        {flash && <p role="status" className="panel rounded-full px-3 py-1.5 text-xs text-foreground motion-safe:animate-in motion-safe:fade-in-0">{flash}</p>}
+        {action && openIdea === null && (
+          // One button, so no padding: its hover fills the whole circle.
+          // Fades with the page while a panel is open; a click there falls through and closes the panel
+          <Toolbar aria-label="Actions" className={cn('overflow-hidden p-0 transition-[opacity,filter] duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] motion-reduce:transition-none max-sm:border-border max-sm:bg-[var(--panel)] max-sm:backdrop-blur-xl!',
+            sheetOpen && 'pointer-events-none! opacity-45 blur-[2px]')}>
+            <ToolButton icon={Plus} label={action.label} side="top" className="size-12" onClick={action.onClick} active={sheetOpen && (panel?.kind === 'new-idea' || panel?.kind === 'new-update')} />
+          </Toolbar>
+        )}
+      </ActionDock>
+    </>
+  )
+}
+
+// First sign-in: a name for comments and ideas
+function Welcome({ store, onDone }: { store: Store; onDone: () => Promise<void> }) {
+  return (
+    <main className="grid min-h-dvh place-items-center px-6">
+      <div className="flex w-full max-w-sm flex-col gap-3">
+        <p className="px-1 text-sm text-foreground">Your name, as other members will see it</p>
+        <SendField label="Continue" placeholder="Name" autoComplete="name" enterKeyHint="go" icon={ArrowRight} autoFocus clearOnSend={false}
+          onSend={async v => { await saveName(store.me.id, v); await onDone() }} />
+      </div>
+    </main>
+  )
+}
+
+function Message({ children }: { children: ReactNode }) {
+  return (
+    <main className="grid min-h-dvh place-items-center px-6">
+      <div className="flex max-w-xs flex-col items-start text-sm text-muted-foreground">{children}</div>
+    </main>
+  )
+}
