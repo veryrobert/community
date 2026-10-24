@@ -46,6 +46,8 @@ function readHash(): { view: View; idea: number | null } {
 }
 
 function writeHash(view: View, idea: number | null) {
+  // Admin keeps its section in the address (#admin/people); Admin.tsx writes that part
+  if (view === 'admin' && location.hash.startsWith('#admin/')) return
   const next = `#${view}${idea ? `/${idea}` : ''}`
   if (location.hash !== next) history.replaceState(null, '', next)
 }
@@ -232,8 +234,11 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
     { id: 'roadmap', label: 'Roadmap', icon: Columns3 },
     { id: 'updates', label: 'Updates', icon: Megaphone },
     { id: 'about', label: 'About', icon: Info },
-    ...(facilitator ? [{ id: 'admin', label: 'Admin', icon: Shield }] as const : []),
   ] as const).map(p => ({ ...p, active: view === p.id && panel?.kind !== 'idea', onClick: () => { setView(p.id); if (panel?.kind === 'idea') setPanel(null) } }))
+  // Facilitators reach Admin from its own button in the top bar, not the menu
+  const admin = facilitator
+    ? { id: 'admin', label: 'Admin', icon: Shield, active: view === 'admin' && panel?.kind !== 'idea', onClick: () => { setView('admin'); if (panel?.kind === 'idea') setPanel(null) } }
+    : undefined
 
   // Home is the ideas list in its default view: a new key resets its order, filters and search
   const [homes, setHomes] = useState(0)
@@ -293,7 +298,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
         </div>
       </main>
 
-      <TopBar name={name} onHome={home} places={places}
+      <TopBar name={name} onHome={home} places={places} admin={admin}
         me={{ name: displayName(store.me), email: store.me.email, avatar: store.me.avatar_url }} onSettings={() => setPanel({ kind: 'settings' })} onSignOut={() => signOut()}
         searching={searching && view === 'ideas' && openIdea === null}
         onSearch={toggleSearch} phone={phone} panelOpen={sheetOpen} />

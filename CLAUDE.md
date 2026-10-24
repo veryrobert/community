@@ -47,12 +47,12 @@ This app was made from `veryrobert/starter`. Keep to its stack and style.
 A private, invite-only ideas board for a community of practice (Nolt-style), on Supabase. Not a making tool: no Canvas, Format, Colour, Library or Export panels.
 
 ### Layout
-- One top bar (`components/shell/TopBar.tsx`), the same on desktop and phones: the community's name, as written (tap for home), on the left; search, one menu icon holding Ideas, Roadmap, Updates, About and Admin (facilitators), and your photo, which opens your name and email, Settings and Sign out. This replaces the starter's rail for this app.
+- One top bar (`components/shell/TopBar.tsx`), the same on desktop and phones: the community's name, as written (tap for home), on the left; search, Admin (a shield, facilitators only), one menu icon holding Ideas, Roadmap, Updates and About, and your photo, which opens your name and email, Settings and Sign out. This replaces the starter's rail for this app.
 - The stage is a scrolling column: Board, Updates, About, Admin and an idea page `max-w-2xl`; Roadmap `max-w-6xl`.
 - An idea opens as its own page (back top left, its ⋯ or check top right), not in a panel; back restores the list's scroll position.
 - The panel (`PanelSheet`) is for Settings, writing a new idea or update, and changing an idea's status. Desktop: 400px from the right. Phones: nearly full height with a grab bar; drag the bar or header down to close.
 - Bottom: one action in a frosted circle, `Plus`, only where it belongs: new idea on Ideas, new update on Updates (facilitators only), nothing on Roadmap, About, Admin or an idea.
-- Settings is personal only (photo, name, appearance, email, security). Everything about the community lives in Admin (facilitators): Community (name, vision, About page text), Goals and tags, People (requests, invites, members).
+- Settings is personal only (photo, name, appearance, email, security). Everything about the community lives in Admin (facilitators): a list of three sections, each its own page (#admin/community, #admin/tags, #admin/people) with a way back: Community (name, vision, About page text), Goals and tags, People (requests, invites, members).
 
 ### Type and controls
 - Three sizes only, set as theme tokens in `index.css` so shadcn follows: 13/16/20px on phones, 12/14/18px on desktop (`xs`, `sm`=`base`, `lg`=`xl`). Root stays 16px. Hierarchy from colour and space, not more sizes.

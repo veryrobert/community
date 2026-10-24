@@ -13,11 +13,13 @@ export type NavItem = { id: string; label: string; icon: LucideIcon; active: boo
 const iconButton = 'grid size-9 place-items-center rounded-full outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent'
 
 // One bar across the top, the same on every screen: the community's name (tap for home) on the
-// left; search, one menu icon holding the places, and your photo (Settings, Sign out) on the right.
-export function TopBar({ name, onHome, places, me, onSettings, onSignOut, searching, onSearch, phone, panelOpen }: {
+// left; search, Admin for facilitators, one menu icon holding the places, and your photo
+// (Settings, Sign out) on the right.
+export function TopBar({ name, onHome, places, admin, me, onSettings, onSignOut, searching, onSearch, phone, panelOpen }: {
   name: string
   onHome: () => void
   places: NavItem[]
+  admin?: NavItem // facilitators only: its own button, beside the menu
   me: { name: string; email: string; avatar: string | null }
   onSettings: () => void
   onSignOut: () => void
@@ -38,6 +40,12 @@ export function TopBar({ name, onHome, places, me, onSettings, onSignOut, search
           className={cn(iconButton, searching && 'bg-primary text-primary-foreground hover:bg-primary')}>
           <Search className="size-5" strokeWidth={1.5} />
         </button>
+        {admin && (
+          <button type="button" aria-label={admin.label} title={admin.label} aria-current={admin.active ? 'page' : undefined} onClick={admin.onClick}
+            className={cn(iconButton, admin.active && 'bg-accent')}>
+            <admin.icon className="size-5" strokeWidth={1.5} />
+          </button>
+        )}
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger aria-label="Menu" className={iconButton}>
             <MenuIcon open={menuOpen} />
