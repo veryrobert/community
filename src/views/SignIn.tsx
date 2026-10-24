@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SendField } from '@/components/shell/SendField'
 import { CodeField } from '@/components/shell/CodeField'
@@ -7,13 +7,13 @@ import { VennMark } from '@/components/shell/VennMark'
 import { sendCode, signInWithGitHub, clearSignOutReason, readSignOutReason, verifyCode } from '@/lib/auth'
 import { useTurnstile } from '@/lib/turnstile'
 import { loadAbout } from '@/lib/data'
-import { About } from './About'
+import { About, Join } from './About'
 
 // Two ways in, both invite-only: GitHub, or a code sent to the invited email. Either way the
 // next screen asks for the authenticator code.
 export function SignIn() {
   const [email, setEmail] = useState<string | null>(null)
-  const [about, setAbout] = useState(false)
+  const [page, setPage] = useState<'signin' | 'about' | 'join'>('signin')
   const [error, setError] = useState<string | null>(null)
   const [reason] = useState(readSignOutReason)
   useEffect(clearSignOutReason, []) // shown once
@@ -22,13 +22,14 @@ export function SignIn() {
   const [name, setName] = useState<string | null>(null)
   useEffect(() => { loadAbout().then(c => setName(c.name)).catch(() => {}) }, [])
 
-  if (about) {
+  // About and How to join are pages of their own, each linking to the other and back to sign-in
+  if (page !== 'signin') {
     return (
-      <main className="flex min-h-dvh flex-col gap-6 py-6">
+      <main key={page} className="page-in flex min-h-dvh flex-col gap-6 py-6">
         <div className="mx-auto w-full max-w-2xl px-3">
-          <button type="button" onClick={() => setAbout(false)} className="h-10 rounded-full px-2 text-sm text-muted-foreground hover:text-foreground">← Sign in</button>
+          <button type="button" onClick={() => setPage('signin')} className="h-10 rounded-full px-2 text-sm text-muted-foreground hover:text-foreground">← Sign in</button>
         </div>
-        <About signedIn={false} />
+        {page === 'about' ? <About signedIn={false} onJoin={() => setPage('join')} /> : <Join onAbout={() => setPage('about')} />}
         <div className="h-12" />
       </main>
     )
@@ -57,15 +58,18 @@ export function SignIn() {
           <div className="flex items-center gap-3 px-1 text-xs text-muted-foreground" aria-hidden>
             <span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" />
           </div>
-          <SendField label="Email me a code" placeholder="Invited email address" type="email" autoComplete="email" enterKeyHint="go" icon={ArrowRight}
+          <SendField label="Email me a code" placeholder="Email address" hintIcon={Mail} type="email" autoComplete="email" enterKeyHint="go" icon={ArrowRight}
             clearOnSend={false} onSend={async v => { await sendCode(v, await captcha.getToken()); setEmail(v.trim().toLowerCase()) }} />
           {/* Cloudflare's check: invisible unless it needs a tick from a person */}
           <div ref={captcha.box} />
           {captcha.error && <p role="alert" className="px-1 text-xs text-destructive">{captcha.error}</p>}
-          <p className="px-1 text-xs text-muted-foreground">Invite only. Use the email you were invited with, or a GitHub account whose primary email is that address.</p>
-          <button type="button" onClick={() => setAbout(true)} className="self-start px-1 text-sm text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">
-            About this community, and how to join
-          </button>
+          <p className="px-1 text-center text-xs text-muted-foreground">
+            {name ?? 'This'} is an invite-only community. Sign in with the email address you were invited with, or a GitHub account that uses it.
+          </p>
+          <nav aria-label="About" className="flex justify-center gap-4 px-1 text-xs text-muted-foreground">
+            <button type="button" onClick={() => setPage('about')} className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">About the community</button>
+            <button type="button" onClick={() => setPage('join')} className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">How to join</button>
+          </nav>
           {error && <p role="alert" className="px-1 text-xs text-destructive">{error}</p>}
         </>)}
       </div>

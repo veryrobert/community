@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,7 +10,7 @@ import type { Community } from '@/lib/types'
 
 // What the community is, how it works, its code of conduct, and (for anyone not yet in) a way to
 // ask to join. Readable before signing in; facilitators edit the text in Admin.
-export function About({ community, signedIn }: { community?: Community; signedIn: boolean }) {
+export function About({ community, signedIn, onJoin }: { community?: Community; signedIn: boolean; onJoin?: () => void }) {
   const [c, setC] = useState<Community | undefined>(community)
   useEffect(() => { if (!community) loadAbout().then(setC).catch(() => {}) }, [community])
   const shown = community ?? c
@@ -30,8 +31,55 @@ export function About({ community, signedIn }: { community?: Community; signedIn
           <Markdown className="px-1">{shown.conduct}</Markdown>
         </FieldGroup>
       )}
-      {!signedIn && <RequestInvite />}
+      {!signedIn && onJoin && <PageLink onClick={onJoin}>How to join</PageLink>}
     </div>
+  )
+}
+
+// Who to write to about joining. A placeholder until the community has its own address.
+const CONTACT_EMAIL = 'hello@example.com'
+
+const STEPS = [
+  { title: 'Ask to join', body: 'Tell the facilitators who you are, using the form below.' },
+  { title: 'We review it', body: 'A facilitator looks at your request, usually within a week.' },
+  { title: 'You’re invited', body: 'You get an email. Sign in with that address or GitHub, then set up an authenticator.' },
+]
+
+// How to join, for people not yet in: three steps, then the request form and who to contact. Links back to About.
+export function Join({ onAbout }: { onAbout: () => void }) {
+  return (
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-10 px-5">
+      <div className="flex flex-col gap-4">
+        <h1 className="text-xl text-foreground">How to join</h1>
+        <p className="text-base text-muted-foreground">Membership is by invitation. It takes three steps.</p>
+      </div>
+      {/* 1 → 2 → 3: across on desktop, stacked on phones */}
+      <ol className="grid gap-3 sm:grid-cols-3">
+        {STEPS.map((step, i) => (
+          <li key={step.title} className="relative flex flex-col gap-2 rounded-[2px] border border-border p-4">
+            <span className="grid size-7 place-items-center rounded-full border border-border font-mono text-xs text-foreground tabular-nums">{i + 1}</span>
+            <span className="text-sm text-foreground">{step.title}</span>
+            <span className="text-xs text-muted-foreground">{step.body}</span>
+            {i < STEPS.length - 1 && <ChevronRight aria-hidden strokeWidth={1.5} className="absolute top-1/2 -right-3 hidden size-4 -translate-y-1/2 bg-background text-muted-foreground sm:block" />}
+          </li>
+        ))}
+      </ol>
+      <RequestInvite />
+      <FieldGroup title="Questions">
+        <p className="px-1 text-sm text-muted-foreground">
+          Email <a href={`mailto:${CONTACT_EMAIL}`} className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">{CONTACT_EMAIL}</a> and a facilitator will get back to you.
+        </p>
+      </FieldGroup>
+      <PageLink onClick={onAbout}>About the community</PageLink>
+    </div>
+  )
+}
+
+function PageLink({ onClick, children }: { onClick: () => void; children: string }) {
+  return (
+    <button type="button" onClick={onClick} className="self-start px-1 text-sm text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">
+      {children} →
+    </button>
   )
 }
 
@@ -56,7 +104,7 @@ function RequestInvite() {
 
   if (state === 'sent') {
     return (
-      <FieldGroup title="Ask to join">
+      <FieldGroup title="1. Ask to join">
         <p className="px-1 text-sm text-foreground">Thanks. A facilitator will look at your request and email you an invitation if it’s a fit.</p>
       </FieldGroup>
     )
@@ -64,8 +112,7 @@ function RequestInvite() {
 
   return (
     <form onSubmit={submit}>
-      <FieldGroup title="Ask to join">
-        <p className="-mt-1 px-1 text-sm text-muted-foreground">Membership is by invitation. Tell the facilitators who you are and they’ll be in touch.</p>
+      <FieldGroup title="1. Ask to join">
         <Field label="Name" htmlFor="req-name"><Input id="req-name" value={form.name} onChange={set('name')} required maxLength={120} autoComplete="name" enterKeyHint="next" /></Field>
         <Field label="Work email" htmlFor="req-email"><Input id="req-email" type="email" value={form.email} onChange={set('email')} required autoComplete="email" enterKeyHint="next" /></Field>
         <Field label="Organisation and role" htmlFor="req-org"><Input id="req-org" value={form.organisation} onChange={set('organisation')} maxLength={160} enterKeyHint="next" /></Field>

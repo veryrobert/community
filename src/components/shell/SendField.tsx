@@ -12,6 +12,7 @@ export function SendField({
   placeholder,
   onSend,
   icon = ArrowUp,
+  hintIcon,
   multiline = false,
   type = 'text',
   enterKeyHint = 'send',
@@ -24,6 +25,7 @@ export function SendField({
   placeholder?: string
   onSend: (value: string) => Promise<unknown>
   icon?: LucideIcon
+  hintIcon?: LucideIcon // sits where the send button goes while the field is empty, saying what it's for
   multiline?: boolean
   type?: string
   enterKeyHint?: 'send' | 'go' | 'done'
@@ -36,6 +38,7 @@ export function SendField({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const Icon = icon
+  const Hint = hintIcon
   const ready = value.trim().length > 0 && !busy
 
   async function send(e?: FormEvent) {
@@ -83,6 +86,12 @@ export function SendField({
         >
           <Icon className="size-4" strokeWidth={1.5} />
         </button>
+        {Hint && (
+          <Hint aria-hidden strokeWidth={1.5} className={cn(
+            'pointer-events-none absolute right-4 bottom-4 size-4 text-muted-foreground transition-opacity duration-150',
+            ready ? 'opacity-0' : 'opacity-100',
+          )} />
+        )}
       </div>
       {error && <p role="alert" className="px-1 text-xs text-destructive">{error}</p>}
     </form>
