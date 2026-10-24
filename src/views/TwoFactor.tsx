@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Copy } from 'lucide-react'
+import { Check, Copy } from 'lucide-react'
 import { CodeField } from '@/components/shell/CodeField'
 import { ToolButton } from '@/components/shell/ToolButton'
 import { confirmCode, listAuthenticators, signOut, startEnroll } from '@/lib/auth'
@@ -17,6 +17,25 @@ export function Enroll({ name, onDone }: { name: string; onDone: () => void }) {
     return () => { live = false }
   }, [name])
 
+  // The clipboard API can refuse (permissions, some in-app browsers); fall back to the old copy command
+  async function copy(secret: string) {
+    try {
+      await navigator.clipboard.writeText(secret)
+    } catch {
+      const field = document.createElement('textarea')
+      field.value = secret
+      field.setAttribute('readonly', '')
+      field.style.position = 'fixed'
+      field.style.opacity = '0'
+      document.body.appendChild(field)
+      field.select()
+      document.execCommand('copy')
+      field.remove()
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   if (error) return <p role="alert" className="px-1 text-xs text-destructive">{error}</p>
   if (!setup) return <p className="px-1 text-xs text-muted-foreground">Preparing</p>
 
@@ -26,9 +45,11 @@ export function Enroll({ name, onDone }: { name: string; onDone: () => void }) {
       {/* The QR code needs a light ground to scan, whatever the theme */}
       <img src={setup.qr} alt="QR code for your authenticator app" className="size-44 self-center rounded-xl bg-white p-2" />
       <div className="flex items-center gap-2 rounded-xl bg-secondary py-1 pr-1 pl-4">
-        <code className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{setup.secret}</code>
-        <ToolButton icon={Copy} label={copied ? 'Copied' : 'Copy key'} side="top" className="size-9 shrink-0 [&_svg]:size-4"
-          onClick={() => navigator.clipboard.writeText(setup.secret).then(() => setCopied(true))} />
+        {/* Tapping the key selects all of it, for copying by hand */}
+        <code className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground select-all">{setup.secret}</code>
+        {copied && <span role="status" className="shrink-0 text-xs text-foreground">Copied</span>}
+        <ToolButton icon={copied ? Check : Copy} label={copied ? 'Copied' : 'Copy key'} side="top" className="size-9 shrink-0 [&_svg]:size-4"
+          onClick={() => copy(setup.secret)} />
       </div>
       <p className="px-1 text-sm text-foreground">Then enter the 6-digit code it shows</p>
       <CodeField label="Authenticator code" autoFocus={false} onCode={code => confirmCode(setup.factorId, code).then(onDone)} />
