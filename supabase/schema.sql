@@ -22,6 +22,14 @@ create table profiles (
   notify_comments boolean not null default true,
   notify_status boolean not null default true,
   notify_ideas boolean not null default false,
+  -- For the People directory. Everyone is listed unless they opt out; email shows only if they opt in.
+  organisation text not null default '' check (char_length(organisation) <= 160),
+  job_title text not null default '' check (char_length(job_title) <= 120),
+  design_area text not null default '' check (char_length(design_area) <= 80),
+  linkedin text not null default '' check (linkedin = '' or linkedin ~ '^https://([a-z]+\.)?linkedin\.com/'),
+  bio text not null default '' check (char_length(bio) <= 280),
+  in_directory boolean not null default true,
+  show_email boolean not null default false,
   created_at timestamptz not null default now()
 );
 

@@ -25,7 +25,15 @@ export const ROLE_ORDER: IdeaRole[] = ['follower', 'contributor', 'lead']
 export type Person = { user_id: string; role: IdeaRole; name: string }
 
 export type Notify = { notify_comments: boolean; notify_status: boolean; notify_ideas: boolean }
-export type Profile = { id: string; email: string; name: string | null; role: Role; avatar_url: string | null } & Notify
+export type Profile = { id: string; email: string; name: string | null; role: Role; avatar_url: string | null } & Notify & ProfileDetails
+// What members say about themselves for the People directory
+export type ProfileDetails = {
+  organisation: string; job_title: string; design_area: string; linkedin: string; bio: string
+  in_directory: boolean; show_email: boolean
+}
+
+// Areas of design, offered on the join form and in profiles; stored as written
+export const DESIGN_AREAS = ['Service design', 'User research', 'Content design', 'Interaction and UX design', 'Visual and graphic design', 'Product design', 'Accessibility', 'Design leadership', 'Something else']
 export type Community = { name: string; vision: string; about: string; guidelines: string; conduct: string }
 export type InviteRequest = {
   id: number; name: string; email: string; email_kind: 'work' | 'personal'; organisation: string; role: string

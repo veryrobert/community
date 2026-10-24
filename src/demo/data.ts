@@ -1,18 +1,18 @@
 // In-memory stand-in for lib/data.ts, so the app can be tried without Supabase. Same exports.
 import { useCallback, useSyncExternalStore } from 'react'
 import { ABOUT, CONDUCT, GUIDELINES } from './about'
-import type { InviteRequest, Comment, Community, HideReason, Idea, IdeaRole, Invite, Notify, Person, Profile, Role, Status, Tag, Goal, Update } from '@/lib/types'
+import type { InviteRequest, Comment, Community, HideReason, Idea, IdeaRole, Invite, Notify, Person, Profile, ProfileDetails, Role, Status, Tag, Goal, Update } from '@/lib/types'
 
 export type Store = { me: Profile; community: Community; goals: Goal[]; tags: Tag[]; ideas: Idea[]; updates: Update[]; members: Profile[] }
 export type IdeaInput = { title: string; body: string; goal_id: number | null }
 
 const ago = (h: number) => new Date(Date.now() - h * 3600e3).toISOString()
-const n = { notify_comments: true, notify_status: true, notify_ideas: false, avatar_url: null as string | null }
+const n = { notify_comments: true, notify_status: true, notify_ideas: false, avatar_url: null as string | null, linkedin: '', bio: '', in_directory: true, show_email: false }
 const members: Profile[] = [
-  { id: 'me', email: 'you@example.ie', name: 'You', role: 'facilitator', ...n },
-  { id: 'aoife', email: 'aoife@example.ie', name: 'Aoife', role: 'member', ...n },
-  { id: 'ciaran', email: 'ciaran@example.ie', name: 'Ciarán', role: 'member', ...n },
-  { id: 'niamh', email: 'niamh@example.ie', name: 'Niamh', role: 'facilitator', ...n },
+  { id: 'me', email: 'you@example.ie', name: 'You', role: 'facilitator', ...n, organisation: 'Office of the Government CIO', job_title: 'Head of design', design_area: 'Design leadership' },
+  { id: 'aoife', email: 'aoife@example.ie', name: 'Aoife', role: 'member', ...n, organisation: 'Department of Social Protection', job_title: 'Service designer', design_area: 'Service design', bio: 'Working on the jobseeker journey. Happy to talk about research with people in crisis.', show_email: true },
+  { id: 'ciaran', email: 'ciaran@example.ie', name: 'Ciarán', role: 'member', ...n, organisation: 'Revenue', job_title: 'Content designer', design_area: 'Content design', linkedin: 'https://www.linkedin.com/in/example' },
+  { id: 'niamh', email: 'niamh@example.ie', name: 'Niamh', role: 'facilitator', ...n, organisation: 'Department of Social Protection', job_title: 'User researcher', design_area: 'User research' },
 ]
 const nameOf = (id: string) => members.find(m => m.id === id)?.name ?? 'Someone'
 
@@ -160,6 +160,12 @@ export async function publishUpdate(title: string, body: string, ideaIds: number
 }
 export async function deleteUpdate(id: number) { db.updates = db.updates.filter(u => u.id !== id); commit() }
 
+export async function saveProfile(id: string, details: Partial<ProfileDetails>) {
+  const d = { ...details }
+  if (typeof d.linkedin === 'string' && d.linkedin.trim() && !/^https?:\/\//.test(d.linkedin.trim())) d.linkedin = `https://${d.linkedin.trim()}`
+  Object.assign(members.find(m => m.id === id)!, d)
+  commit()
+}
 export async function saveName(id: string, name: string) { members.find(m => m.id === id)!.name = name.trim(); commit() }
 export async function setRole(id: string, role: Role) { members.find(m => m.id === id)!.role = role; commit() }
 export async function setNotify(id: string, prefs: Partial<Notify>) { Object.assign(members.find(m => m.id === id)!, prefs); commit() }

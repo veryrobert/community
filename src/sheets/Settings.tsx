@@ -10,12 +10,13 @@ import { Security } from './Security'
 import { ToolButton } from '@/components/shell/ToolButton'
 import { RowMenu } from '@/components/shell/RowMenu'
 import { Avatar } from '@/components/shell/Avatar'
+import { Picker } from '@/components/shell/Picker'
 import { getTheme, setTheme, type Theme } from '@/lib/theme'
 import { MAX_TAGS, TagChip } from '@/components/shell/Tags'
 import {
-  addGoal, addTag, invite, loadInvites, removeGoal, removeTag, renameTag, tidyTag, saveCommunity, clearRequest, loadRequests, removeAvatar, saveName, setNotify, uploadAvatar, setRole, signOut, uninvite, type Store,
+  addGoal, addTag, invite, loadInvites, removeGoal, removeTag, renameTag, tidyTag, saveCommunity, clearRequest, loadRequests, removeAvatar, saveName, saveProfile, setNotify, uploadAvatar, setRole, signOut, uninvite, type Store,
 } from '@/lib/data'
-import { displayName, type Invite, type InviteRequest, type Profile, type Role } from '@/lib/types'
+import { DESIGN_AREAS, displayName, type Invite, type InviteRequest, type Profile, type Role } from '@/lib/types'
 
 export function Settings({ store, onChanged }: { store: Store; onChanged: () => void }) {
   const { me } = store
@@ -26,10 +27,29 @@ export function Settings({ store, onChanged }: { store: Store; onChanged: () => 
       <FieldGroup title="You">
         <Photo me={me} onChanged={onChanged} />
         <AutoInput label="Name" value={me.name ?? ''} required autoComplete="name" onSave={v => save(() => saveName(me.id, v))} />
+        <AutoInput label="Organisation" value={me.organisation} maxLength={160} autoComplete="organization" onSave={v => save(() => saveProfile(me.id, { organisation: v }))} />
+        <AutoInput label="Job title" value={me.job_title} maxLength={120} autoComplete="organization-title" onSave={v => save(() => saveProfile(me.id, { job_title: v }))} />
+        <Field label="Area of design">
+          <Picker label="Area of design" value={me.design_area} onChange={v => save(() => saveProfile(me.id, { design_area: v }))}
+            options={[{ value: '', label: 'Choose one' }, ...DESIGN_AREAS.map(a => ({ value: a, label: a }))]} />
+        </Field>
+        <AutoInput label="LinkedIn" value={me.linkedin} inputMode="url" autoCapitalize="none" placeholder="linkedin.com/in/yourname" onSave={v => save(() => saveProfile(me.id, { linkedin: v }))} />
+        <AutoTextarea label="About you" value={me.bio} count={280} placeholder="What you work on, and what you’re happy to talk about" onSave={v => save(() => saveProfile(me.id, { bio: v }))} />
         <div className="flex items-center justify-between gap-3 px-1">
           <p className="min-w-0 truncate text-xs text-muted-foreground">{me.email}, {me.role}</p>
           <ToolButton icon={LogOut} label="Sign out" side="left" className="shrink-0" onClick={() => signOut()} />
         </div>
+      </FieldGroup>
+      <FieldGroup title="Directory">
+        <Field label="Show me in People">
+          <OnOff label="Show me in People" value={me.in_directory} onChange={v => save(() => saveProfile(me.id, { in_directory: v }))} />
+        </Field>
+        {me.in_directory && (
+          <Field label="Show my email there">
+            <OnOff label="Show my email there" value={me.show_email} onChange={v => save(() => saveProfile(me.id, { show_email: v }))} />
+          </Field>
+        )}
+        <p className="-mt-2 px-1 text-xs text-muted-foreground">People lists members with what they’ve shared above. Only members can see it.</p>
       </FieldGroup>
       <FieldGroup title="Appearance">
         <Appearance />

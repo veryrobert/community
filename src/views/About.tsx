@@ -8,7 +8,7 @@ import { Picker } from '@/components/shell/Picker'
 import { Segmented } from '@/components/shell/Segmented'
 import { Markdown } from '@/components/shell/Markdown'
 import { loadAbout, requestInvite } from '@/lib/data'
-import type { Community, JoinRequest } from '@/lib/types'
+import { DESIGN_AREAS, type Community, type JoinRequest } from '@/lib/types'
 
 // What the community is, how it works, its code of conduct, and (for anyone not yet in) a way to
 // ask to join. Readable before signing in; facilitators edit the text in Admin.
@@ -86,8 +86,7 @@ function PageLink({ onClick, children }: { onClick: () => void; children: string
   )
 }
 
-// The choices offered for area of design and how someone practises; stored as written
-const AREAS = ['Service design', 'User research', 'Content design', 'Interaction and UX design', 'Visual and graphic design', 'Product design', 'Accessibility', 'Design leadership', 'Something else']
+// How someone works with design, on the join form; stored as written
 const PRACTICE = ['I practise design day to day', 'I lead or manage design work', 'I work closely with designers', 'I’m moving into design']
 
 function RequestInvite() {
@@ -134,7 +133,7 @@ function RequestInvite() {
         <Field label="Role" htmlFor="req-role"><Input id="req-role" value={form.role} onChange={set('role')} required maxLength={120} autoComplete="organization-title" enterKeyHint="next" /></Field>
         <Field label="Area of design">
           <Picker label="Area of design" value={form.design_area} onChange={pick('design_area')}
-            options={[{ value: '', label: 'Choose one' }, ...AREAS.map(a => ({ value: a, label: a }))]} />
+            options={[{ value: '', label: 'Choose one' }, ...DESIGN_AREAS.map(a => ({ value: a, label: a }))]} />
         </Field>
         <Field label="How you work with design">
           <Picker label="How you work with design" value={form.practice} onChange={pick('practice')}

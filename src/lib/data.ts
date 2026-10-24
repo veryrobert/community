@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import { displayName, type Tag, type Comment, type Community, type InviteRequest, type JoinRequest, type Goal, type Idea, type HideReason, type IdeaRole, type Invite, type Notify, type Person, type Profile, type Role, type Status, type Update } from './types'
+import { displayName, type Tag, type Comment, type Community, type InviteRequest, type JoinRequest, type Goal, type Idea, type HideReason, type IdeaRole, type Invite, type Notify, type Person, type Profile, type ProfileDetails, type Role, type Status, type Update } from './types'
 
 // Turns a Supabase error into something worth showing
 function check<T>({ data, error }: { data: T; error: { message: string } | null }): T {
@@ -40,7 +40,7 @@ export function useStore(userId: string | undefined) {
     if (!userId) return
     try {
       const [members, community, goals, tags, ideas, updates] = await Promise.all([
-        supabase.from('profiles').select('id, email, name, role, avatar_url, notify_comments, notify_status, notify_ideas').order('name').then(check),
+        supabase.from('profiles').select('id, email, name, role, avatar_url, notify_comments, notify_status, notify_ideas, organisation, job_title, design_area, linkedin, bio, in_directory, show_email').order('name').then(check),
         supabase.from('community').select('name, vision, about, guidelines, conduct').single().then(check),
         supabase.from('goals').select('*').order('position').then(check),
         supabase.from('tags').select('*').order('position').order('name').then(check),
@@ -204,6 +204,17 @@ export async function publishUpdate(title: string, body: string, ideaIds: number
 
 export async function deleteUpdate(id: number) {
   check(await supabase.from('updates').delete().eq('id', id))
+}
+
+// Directory details and opt-outs; LinkedIn gets https:// if it was left off
+export async function saveProfile(id: string, details: Partial<ProfileDetails>) {
+  const d = { ...details }
+  if (typeof d.linkedin === 'string') {
+    const v = d.linkedin.trim()
+    d.linkedin = !v ? '' : /^https?:\/\//.test(v) ? v.replace(/^http:/, 'https:') : `https://${v}`
+  }
+  const { error } = await supabase.from('profiles').update(d).eq('id', id)
+  if (error) throw new Error(/linkedin/i.test(error.message) ? 'Use your LinkedIn profile address, e.g. linkedin.com/in/yourname' : error.message)
 }
 
 export async function saveName(id: string, name: string) {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowRight, Check, Columns3, Ellipsis, Info, Shield, Lightbulb, Megaphone, Plus, Share2 } from 'lucide-react'
+import { ArrowRight, Check, Columns3, Ellipsis, Info, Shield, Lightbulb, Megaphone, Plus, Share2, Users } from 'lucide-react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { DialogsProvider, useDialogs } from '@/components/shell/Dialogs'
@@ -24,13 +24,14 @@ import { Roadmap } from '@/views/Roadmap'
 import { Updates } from '@/views/Updates'
 import { Admin } from '@/views/Admin'
 import { About } from '@/views/About'
+import { People } from '@/views/People'
 import { IdeaSheet, StatusEditor } from '@/sheets/IdeaSheet'
 import { IdeaPage } from '@/sheets/IdeaPage'
 import { NewIdea } from '@/sheets/IdeaForm'
 import { UPDATE_FORM, UpdateForm } from '@/sheets/UpdateForm'
 import { Settings } from '@/sheets/Settings'
 
-type View = 'ideas' | 'roadmap' | 'updates' | 'about' | 'admin'
+type View = 'ideas' | 'roadmap' | 'updates' | 'people' | 'about' | 'admin'
 type Panel =
   | { kind: 'idea'; id: number; editing?: boolean }
   | { kind: 'status'; id: number }
@@ -41,7 +42,7 @@ type Panel =
 // The address is #view or #view/ideaId, so an idea can be linked to
 function readHash(): { view: View; idea: number | null } {
   const [v, id] = location.hash.slice(1).split('/')
-  const view: View = v === 'roadmap' || v === 'updates' || v === 'about' || v === 'admin' ? v : 'ideas'
+  const view: View = v === 'roadmap' || v === 'updates' || v === 'people' || v === 'about' || v === 'admin' ? v : 'ideas'
   return { view, idea: id && /^\d+$/.test(id) ? Number(id) : null }
 }
 
@@ -232,6 +233,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
     { id: 'ideas', label: 'Ideas', icon: Lightbulb },
     { id: 'roadmap', label: 'Roadmap', icon: Columns3 },
     { id: 'updates', label: 'Updates', icon: Megaphone },
+    { id: 'people', label: 'People', icon: Users },
     { id: 'about', label: 'About', icon: Info },
   ] as const).map(p => ({ ...p, active: view === p.id && panel?.kind !== 'idea', onClick: () => { setView(p.id); if (panel?.kind === 'idea') setPanel(null) } }))
   // Facilitators reach Admin from its own button in the top bar, not the menu
@@ -291,6 +293,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
         {view === 'ideas' && <Board key={homes} store={store} onOpen={open} onVote={vote} searching={searching} onHome={home} />}
         {view === 'roadmap' && <Roadmap store={store} onOpen={open} openId={openIdea} onError={setFlash} />}
         {view === 'updates' && <Updates store={store} onOpen={open} onChanged={load} />}
+        {view === 'people' && <People store={store} />}
         {view === 'about' && <About community={store.community} signedIn />}
         {view === 'admin' && (facilitator ? <Admin store={store} onChanged={load} /> : <p className="mx-auto max-w-2xl px-5 text-sm text-muted-foreground">Only facilitators can see this.</p>)}
         </>)}
