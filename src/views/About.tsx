@@ -40,9 +40,9 @@ export function About({ community, signedIn, onJoin }: { community?: Community; 
 const CONTACT_EMAIL = 'hello@example.com'
 
 const STEPS = [
-  { title: 'Ask to join', body: 'Tell the facilitators who you are, using the form below.' },
-  { title: 'We review it', body: 'A facilitator looks at your request, usually within a week.' },
-  { title: 'You’re invited', body: 'You get an email. Sign in with that address or GitHub, then set up an authenticator.' },
+  { title: 'Ask to join', body: 'Tell us a little about yourself using the form below.' },
+  { title: 'We’ll take a look', body: 'A facilitator will review your request, usually within a week.' },
+  { title: 'Welcome in', body: 'You’ll get an email invite. Sign in with that address or GitHub, then set up an authenticator app.' },
 ]
 
 // How to join, for people not yet in: three steps, then the request form and who to contact. Links back to About.
@@ -51,7 +51,7 @@ export function Join({ onAbout }: { onAbout: () => void }) {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-10 px-5">
       <div className="flex flex-col gap-4">
         <h1 className="text-xl text-foreground">How to join</h1>
-        <p className="text-base text-muted-foreground">Membership is by invitation, and currently open to people doing design work in the Irish public and civil service. It takes three steps.</p>
+        <p className="text-base text-muted-foreground">Design for Public is open to anyone doing design work in the Irish public and civil service. Joining is free and takes three quick steps.</p>
       </div>
       {/* 1 → 2 → 3: across on desktop, stacked on phones */}
       <ol className="grid gap-3 sm:grid-cols-3">
@@ -67,7 +67,7 @@ export function Join({ onAbout }: { onAbout: () => void }) {
       <RequestInvite />
       <FieldGroup title="Questions">
         <p className="px-1 text-sm text-muted-foreground">
-          Email <a href={`mailto:${CONTACT_EMAIL}`} className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">{CONTACT_EMAIL}</a> and a facilitator will get back to you.
+          Email <a href={`mailto:${CONTACT_EMAIL}`} className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">{CONTACT_EMAIL}</a> and we’ll be happy to help.
         </p>
       </FieldGroup>
       <PageLink onClick={onAbout}>About the community</PageLink>
@@ -77,8 +77,9 @@ export function Join({ onAbout }: { onAbout: () => void }) {
 
 function PageLink({ onClick, children }: { onClick: () => void; children: string }) {
   return (
-    <button type="button" onClick={onClick} className="self-start px-1 text-sm text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">
-      {children} →
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 self-start px-1 text-sm text-muted-foreground hover:text-foreground">
+      {children}
+      <ChevronRight className="size-4" strokeWidth={1.5} aria-hidden />
     </button>
   )
 }

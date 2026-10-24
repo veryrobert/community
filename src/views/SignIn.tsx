@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, Mail } from 'lucide-react'
+import { ArrowRight, ChevronLeft, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SendField } from '@/components/shell/SendField'
 import { CodeField } from '@/components/shell/CodeField'
@@ -27,7 +27,7 @@ export function SignIn() {
     return (
       <main key={page} className="page-in flex min-h-dvh flex-col gap-6 py-6">
         <div className="mx-auto w-full max-w-2xl px-3">
-          <button type="button" onClick={() => setPage('signin')} className="h-10 rounded-full px-2 text-sm text-muted-foreground hover:text-foreground">← Sign in</button>
+          <button type="button" onClick={() => setPage('signin')} className="inline-flex h-10 items-center gap-1 rounded-full px-2 text-sm text-muted-foreground hover:text-foreground"><ChevronLeft className="size-4" strokeWidth={1.5} aria-hidden />Sign in</button>
         </div>
         {page === 'about' ? <About signedIn={false} onJoin={() => setPage('join')} /> : <Join onAbout={() => setPage('about')} />}
         <div className="h-12" />
