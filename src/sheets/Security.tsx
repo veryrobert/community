@@ -53,12 +53,12 @@ export function Security() {
       {adding ? (
         <Enroll name={`Backup ${factors.length}`} onDone={() => { setAdding(false); refresh() }} />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className="self-start px-1 text-sm text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">
+        <button type="button" onClick={() => setAdding(true)} className="self-start rounded-sm px-1 text-sm text-foreground outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
           Add an authenticator
         </button>
       )}
 
-      <button type="button" className="self-start px-1 text-sm text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
+      <button type="button" className="self-start rounded-sm px-1 text-sm text-foreground outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
         onClick={async () => {
           if (await confirm({ title: 'Sign out everywhere?', body: 'Every device signed in to this account is signed out, including this one.', action: 'Sign out everywhere', destructive: true })) signOutEverywhere()
         }}>

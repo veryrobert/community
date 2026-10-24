@@ -190,9 +190,12 @@ export function Facilitation({ store, onChanged, section }: { store: Store; onCh
                       }
                     } },
                   ]}>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm text-foreground">{displayName(m)}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{m.email}</span>
+                  <span className="flex min-w-0 items-center gap-3">
+                    <Avatar name={displayName(m)} url={m.avatar_url} className="size-9" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm text-foreground">{displayName(m)}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{m.email}</span>
+                    </span>
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">{m.id === store.me.id ? 'You' : m.role === 'facilitator' ? 'Facilitator' : ''}</span>
                 </RowMenu>
@@ -240,7 +243,7 @@ function Photo({ me, onChanged }: { me: Profile; onChanged: () => void }) {
         <Avatar name={displayName(me)} url={me.avatar_url} className="size-16 text-sm" />
       </button>
       <div className="flex flex-col items-start gap-1 text-sm">
-        <button type="button" onClick={() => input.current?.click()} disabled={busy} className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">
+        <button type="button" onClick={() => input.current?.click()} disabled={busy} className="rounded-sm text-foreground outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
           {busy ? 'Uploading' : me.avatar_url ? 'Change photo' : 'Add a photo'}
         </button>
         {me.avatar_url && !busy && (
