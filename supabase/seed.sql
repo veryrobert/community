@@ -1,7 +1,7 @@
 -- Run after schema.sql. Change the email on the last line to your own before running:
 -- it's the first facilitator, who can invite everyone else from Settings.
 
-insert into community (id, name, vision, about, guidelines, conduct) values (1, 'community', '',
+insert into community (id, name, vision, about, guidelines, conduct) values (1, 'Design for Public', '',
 $about$A community of practice for people doing design work in and with the Irish public service: service designers, researchers, content and interaction designers, and anyone else shaping how services work.
 
 Members suggest what the community should do next, support the ideas they want, and follow them through to done.$about$,
