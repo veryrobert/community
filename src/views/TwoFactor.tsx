@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { CodeField } from '@/components/shell/CodeField'
 import { ToolButton } from '@/components/shell/ToolButton'
@@ -60,30 +60,27 @@ export function Enroll({ name, onDone }: { name: string; onDone: () => void }) {
 
 export function TwoFactorVerify({ onDone }: { onDone: () => void }) {
   const [factorId, setFactorId] = useState<string | null>(null)
+  const [ready, setReady] = useState(false)
   useEffect(() => { listAuthenticators().then(f => setFactorId(f[0]?.id ?? null)) }, [])
+  // A beat before the code box appears, so it reads as a new step and a key still held from the
+  // email code doesn't land in it
+  useEffect(() => { const t = setTimeout(() => setReady(true), 700); return () => clearTimeout(t) }, [])
   return (
-    <Screen title="Enter your authenticator code"
-      intro="You’ve added an authenticator app to your account, so enter the 6-digit code it shows for this community. It changes every 30 seconds."
-      note="Lost your phone? Ask a facilitator to remove your authenticator, then sign in with just the email code.">
-      {factorId && <CodeField label="Authenticator code" onCode={code => confirmCode(factorId, code).then(onDone)} />}
-    </Screen>
-  )
-}
-
-// The extra sign-in step for members with an authenticator, after the email code or GitHub; laid out like the sign-in page
-function Screen({ title, intro, note, children }: { title: string; intro: string; note: string; children: ReactNode }) {
-  return (
-    <main className="grid min-h-dvh place-items-center px-6 py-12">
+    <main className="page-in grid min-h-dvh place-items-center px-6 py-12">
       <div className="flex w-full max-w-sm flex-col gap-4">
         <header className="flex justify-center pb-6"><VennMark /></header>
+        <p className="inline-flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+          <Check className="size-3.5" strokeWidth={1.5} aria-hidden />Email code accepted
+        </p>
         <div className="flex flex-col gap-1 px-1">
-          <p className="text-xs text-muted-foreground">One more step</p>
-          <h1 className="text-sm text-foreground">{title}</h1>
-          <p className="text-xs text-muted-foreground">{intro}</p>
+          <h1 className="text-sm text-foreground">Now enter the code from your authenticator app</h1>
+          <p className="text-xs text-muted-foreground">You’ve added an authenticator to your account, so there’s one more code: the 6 digits it shows for this community. It changes every 30 seconds.</p>
         </div>
-        {children}
-        <p className="px-1 text-xs text-muted-foreground">{note}</p>
-        <button type="button" onClick={() => signOut()} className="self-start px-1 text-xs text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground">Sign out</button>
+        <div className="min-h-12">
+          {factorId && ready && <div className="page-in"><CodeField label="Authenticator code" onCode={code => confirmCode(factorId, code).then(onDone)} /></div>}
+        </div>
+        <p className="px-1 text-xs text-muted-foreground">Lost your phone? Ask a facilitator to remove your authenticator, then sign in with just the email code.</p>
+        <button type="button" onClick={() => signOut()} className="self-start rounded-sm px-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">Sign out</button>
       </div>
     </main>
   )
