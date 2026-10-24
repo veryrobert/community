@@ -64,7 +64,7 @@ export function SignIn() {
           <div ref={captcha.box} />
           {captcha.error && <p role="alert" className="px-1 text-xs text-destructive">{captcha.error}</p>}
           <p className="px-1 text-center text-xs text-muted-foreground">
-            {name ?? 'This'} is a currently invite-only community for designers in the Irish public and civil service. Use the email you were invited with.
+            {name ?? 'This community'} is currently open to designers working in the Irish public and civil service.
           </p>
           <nav aria-label="About" className="flex justify-center gap-4 px-1 text-xs text-muted-foreground">
             <button type="button" onClick={() => setPage('about')} className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">About the community</button>
