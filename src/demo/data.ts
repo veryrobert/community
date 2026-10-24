@@ -9,9 +9,9 @@ export type IdeaInput = { title: string; body: string; goal_id: number | null }
 const ago = (h: number) => new Date(Date.now() - h * 3600e3).toISOString()
 const n = { notify_comments: true, notify_status: true, notify_ideas: false, avatar_url: null as string | null, linkedin: '', bio: '', in_directory: true, show_email: false }
 const members: Profile[] = [
-  { id: 'me', email: 'you@example.ie', name: 'You', role: 'facilitator', ...n, organisation: 'Office of the Government CIO', job_title: 'Head of design', design_area: 'Design leadership' },
+  { id: 'me', email: 'you@example.ie', name: 'You', role: 'facilitator', ...n, organisation: 'Office of the Government Chief Information Officer (OGCIO)', job_title: 'Head of design', design_area: 'Design leadership' },
   { id: 'aoife', email: 'aoife@example.ie', name: 'Aoife', role: 'member', ...n, organisation: 'Department of Social Protection', job_title: 'Service designer', design_area: 'Service design', bio: 'Working on the jobseeker journey. Happy to talk about research with people in crisis.', show_email: true },
-  { id: 'ciaran', email: 'ciaran@example.ie', name: 'Ciarán', role: 'member', ...n, organisation: 'Revenue', job_title: 'Content designer', design_area: 'Content design', linkedin: 'https://www.linkedin.com/in/example' },
+  { id: 'ciaran', email: 'ciaran@example.ie', name: 'Ciarán', role: 'member', ...n, organisation: 'Office of the Revenue Commissioners (Revenue)', job_title: 'Content designer', design_area: 'Content design', linkedin: 'https://www.linkedin.com/in/example' },
   { id: 'niamh', email: 'niamh@example.ie', name: 'Niamh', role: 'facilitator', ...n, organisation: 'Department of Social Protection', job_title: 'User researcher', design_area: 'User research' },
 ]
 const nameOf = (id: string) => members.find(m => m.id === id)?.name ?? 'Someone'

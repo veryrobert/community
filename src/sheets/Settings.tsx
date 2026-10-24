@@ -11,6 +11,7 @@ import { ToolButton } from '@/components/shell/ToolButton'
 import { RowMenu } from '@/components/shell/RowMenu'
 import { Avatar } from '@/components/shell/Avatar'
 import { Picker } from '@/components/shell/Picker'
+import { ORGANISATIONS } from '@/lib/organisations'
 import { getTheme, setTheme, type Theme } from '@/lib/theme'
 import { MAX_TAGS, TagChip } from '@/components/shell/Tags'
 import {
@@ -18,8 +19,14 @@ import {
 } from '@/lib/data'
 import { DESIGN_AREAS, displayName, type Invite, type InviteRequest, type Profile, type Role } from '@/lib/types'
 
-// The same words, ignoring capitals and spacing
-const same = (a: string, b: string) => a.toLowerCase().replace(/\s+/g, ' ').trim() === b.toLowerCase().replace(/\s+/g, ' ').trim()
+// The same words, ignoring capitals and spacing. A standard name like "Health Service Executive (HSE)"
+// also matches "HSE" and "Health Service Executive" on their own.
+const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
+const same = (known: string, typed: string) => {
+  const t = norm(typed)
+  const [, full, short] = known.match(/^(.*?)\s*\(([^)]+)\)$/) ?? []
+  return norm(known) === t || (!!full && norm(full) === t) || (!!short && norm(short) === t)
+}
 // Distinct values members have entered, most used first
 const known = (values: string[]) => [...values.reduce((n, v) => v ? n.set(v, (n.get(v) ?? 0) + 1) : n, new Map<string, number>())]
   .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([v]) => v)
@@ -27,7 +34,8 @@ const known = (values: string[]) => [...values.reduce((n, v) => v ? n.set(v, (n.
 export function Settings({ store, onChanged }: { store: Store; onChanged: () => void }) {
   const { me } = store
   const save = (fn: () => Promise<unknown>) => fn().then(onChanged)
-  const orgs = known(store.members.map(m => m.organisation))
+  // What members have entered first, then the standard list
+  const orgs = [...new Set([...known(store.members.map(m => m.organisation)), ...ORGANISATIONS])]
   const titles = known(store.members.map(m => m.job_title))
 
   return (

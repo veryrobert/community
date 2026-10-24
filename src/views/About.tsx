@@ -9,6 +9,7 @@ import { Segmented } from '@/components/shell/Segmented'
 import { Markdown } from '@/components/shell/Markdown'
 import { loadAbout, requestInvite } from '@/lib/data'
 import { DESIGN_AREAS, type Community, type JoinRequest } from '@/lib/types'
+import { ORGANISATIONS } from '@/lib/organisations'
 
 // What the community is, how it works, its code of conduct, and (for anyone not yet in) a way to
 // ask to join. Readable before signing in; facilitators edit the text in Admin.
@@ -129,7 +130,8 @@ function RequestInvite() {
             placeholder={form.email_kind === 'work' ? 'name@department.gov.ie' : 'name@example.com'} />
           <p className="px-1 text-xs text-muted-foreground">A work email is easiest for us to check, but some workplaces block outside emails. A personal one is fine too.</p>
         </div>
-        <Field label="Organisation" htmlFor="req-org"><Input id="req-org" value={form.organisation} onChange={set('organisation')} required maxLength={160} autoComplete="organization" enterKeyHint="next" /></Field>
+        <Field label="Organisation" htmlFor="req-org"><Input id="req-org" value={form.organisation} onChange={set('organisation')} required maxLength={160} autoComplete="off" list="standard-organisations" enterKeyHint="next" /></Field>
+        <datalist id="standard-organisations">{ORGANISATIONS.map(o => <option key={o} value={o} />)}</datalist>
         <Field label="Role" htmlFor="req-role"><Input id="req-role" value={form.role} onChange={set('role')} required maxLength={120} autoComplete="organization-title" enterKeyHint="next" /></Field>
         <Field label="Area of design">
           <Picker label="Area of design" value={form.design_area} onChange={pick('design_area')}
