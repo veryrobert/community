@@ -277,6 +277,17 @@ create trigger follow_on_vote after insert on votes
 create trigger follow_on_comment after insert on comments
   for each row execute function follow_on_activity();
 
+-- An idea starts with one supporter: whoever posted it
+create function support_own_idea() returns trigger
+language plpgsql as $$
+begin
+  insert into votes (idea_id, user_id) values (new.id, new.author_id) on conflict do nothing;
+  return new;
+end $$;
+
+create trigger support_own_idea after insert on ideas
+  for each row execute function support_own_idea();
+
 -- Queue emails. security definer: members can't write to the outbox themselves.
 create function queue_comment() returns trigger
 language plpgsql security definer set search_path = public as $$

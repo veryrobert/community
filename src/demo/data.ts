@@ -102,6 +102,7 @@ export async function createIdea(input: IdeaInput, tagIds: number[]) {
   db.ideas.push({ id, ...input, status: 'open', status_note: null, merged_into: null, status_by: null, status_at: null, author_id: 'me', created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
   tagIds.forEach(t => db.ideaTags.push([id, t]))
   db.people.push([id, 'me', 'follower'])
+  db.votes.push([id, 'me']) // an idea starts with its author's support
   commit()
   return id
 }
