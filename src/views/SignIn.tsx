@@ -9,6 +9,9 @@ import { useTurnstile } from '@/lib/turnstile'
 import { loadAbout } from '@/lib/data'
 import { About, Join } from './About'
 
+// GitHub sign-in needs a GitHub OAuth app enabled in Supabase first; until then the button stays hidden
+const GITHUB = import.meta.env.VITE_GITHUB_SIGNIN === 'on'
+
 // Two ways in, both invite-only: GitHub, or a code sent to the invited email. Either way the
 // next screen asks for the authenticator code.
 export function SignIn() {
@@ -43,13 +46,18 @@ export function SignIn() {
           <h1 className="min-h-[1.2em] text-center text-[length:calc(var(--text-sm)*1.5)] leading-tight text-foreground">{name}</h1>
         </header>
         {email ? (<>
-          <p className="px-1 text-sm text-foreground">Enter the code sent to {email}</p>
+          <div className="flex flex-col gap-1 px-1">
+            <p className="text-xs text-muted-foreground">Step 1 of 2</p>
+            <p className="text-sm text-foreground">Check your email</p>
+            <p className="text-xs text-muted-foreground">We sent a 6-digit code to {email}. It expires in 10 minutes.</p>
+          </div>
           <CodeField label="Email code" onCode={code => verifyCode(email, code)} />
           <button type="button" onClick={() => setEmail(null)} className="self-start px-1 text-xs text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground">
             Use a different email, or send a new code
           </button>
         </>) : (<>
           {reason && <p role="status" className="px-1 text-xs text-muted-foreground">{reason}</p>}
+          {GITHUB && (<>
           <Button variant="secondary" className="h-12 gap-2.5 rounded-xl text-base md:text-sm"
             onClick={() => signInWithGitHub().catch(e => setError(e.message))}>
             <GitHubLogo />
@@ -58,6 +66,7 @@ export function SignIn() {
           <div className="flex items-center gap-3 px-1 text-xs text-muted-foreground" aria-hidden>
             <span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" />
           </div>
+          </>)}
           <SendField label="Email me a code" placeholder="Email address" hintIcon={Mail} type="email" autoComplete="email" enterKeyHint="go" icon={ArrowRight}
             clearOnSend={false} onSend={async v => { await sendCode(v, await captcha.getToken()); setEmail(v.trim().toLowerCase()) }} />
           {/* Cloudflare's check: invisible unless it needs a tick from a person */}

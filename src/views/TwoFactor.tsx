@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { CodeField } from '@/components/shell/CodeField'
 import { ToolButton } from '@/components/shell/ToolButton'
+import { VennMark } from '@/components/shell/VennMark'
 import { confirmCode, listAuthenticators, signOut, startEnroll } from '@/lib/auth'
 
 // Adds an authenticator app: scan the QR code (or type the key), then enter a code to prove it works.
@@ -59,7 +60,9 @@ export function Enroll({ name, onDone }: { name: string; onDone: () => void }) {
 
 export function TwoFactorSetup({ onDone }: { onDone: () => void }) {
   return (
-    <Screen title="Set up two-factor sign-in" note="Every member needs it. It keeps the community’s ideas and comments safe if an email account or GitHub account is ever compromised.">
+    <Screen title="Set up your authenticator app"
+      intro="As well as the email code, we ask for a code from an app on your phone. It’s a one-time setup that keeps the community safe even if your email is ever hacked."
+      note="Every member sets this up. Next time, you’ll just enter the code it shows.">
       <Enroll name="Authenticator app" onDone={onDone} />
     </Screen>
   )
@@ -69,17 +72,25 @@ export function TwoFactorVerify({ onDone }: { onDone: () => void }) {
   const [factorId, setFactorId] = useState<string | null>(null)
   useEffect(() => { listAuthenticators().then(f => setFactorId(f[0]?.id ?? null)) }, [])
   return (
-    <Screen title="Enter your authenticator code" note="Lost your phone? Ask a facilitator to reset your two-factor, then sign in again to set it up.">
+    <Screen title="Enter your authenticator code"
+      intro="Open your authenticator app and enter the 6-digit code it shows for this community. It changes every 30 seconds."
+      note="Lost your phone? Ask a facilitator to reset your authenticator, then sign in again to set it up.">
       {factorId && <CodeField label="Authenticator code" onCode={code => confirmCode(factorId, code).then(onDone)} />}
     </Screen>
   )
 }
 
-function Screen({ title, note, children }: { title: string; note: string; children: ReactNode }) {
+// The second sign-in step, after the email code or GitHub; laid out like the sign-in page
+function Screen({ title, intro, note, children }: { title: string; intro: string; note: string; children: ReactNode }) {
   return (
     <main className="grid min-h-dvh place-items-center px-6 py-12">
       <div className="flex w-full max-w-sm flex-col gap-4">
-        <h1 className="px-1 text-sm text-foreground">{title}</h1>
+        <header className="flex justify-center pb-6"><VennMark /></header>
+        <div className="flex flex-col gap-1 px-1">
+          <p className="text-xs text-muted-foreground">Step 2 of 2</p>
+          <h1 className="text-sm text-foreground">{title}</h1>
+          <p className="text-xs text-muted-foreground">{intro}</p>
+        </div>
         {children}
         <p className="px-1 text-xs text-muted-foreground">{note}</p>
         <button type="button" onClick={() => signOut()} className="self-start px-1 text-xs text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground">Sign out</button>
