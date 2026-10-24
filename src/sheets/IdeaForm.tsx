@@ -68,7 +68,7 @@ export function NewIdea({ store, onPosted, onOpen }: { store: Store; onPosted: (
         )}
         <Field label="Details" htmlFor="idea-body">
           <Textarea id="idea-body" value={body} onChange={e => setBody(e.target.value)} className="min-h-36" placeholder="What would change, and who for" />
-          <p className="px-1 text-xs text-muted-foreground">Markdown works: **bold**, *italic*, lists and links</p>
+          <p className="px-1 text-[length:calc(var(--text-xs)*0.875)] text-muted-foreground">Markdown works: **bold**, *italic*, lists and links</p>
         </Field>
         {store.tags.length > 0 && (
           <Field label="Tags" aside={`${tags.length}/${MAX_TAGS_PER_IDEA}`}>
