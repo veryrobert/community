@@ -39,7 +39,7 @@ export function SignIn() {
       <div className="flex w-full max-w-sm flex-col gap-4">
         <header className="flex flex-col items-center gap-3 pb-6">
           <VennMark />
-          <h1 className="min-h-5 text-center text-sm text-foreground">{name}</h1>
+          <h1 className="min-h-[1.2em] text-center text-[length:calc(var(--text-sm)*2)] leading-tight text-foreground">{name}</h1>
         </header>
         {email ? (<>
           <p className="px-1 text-sm text-foreground">Enter the code sent to {email}</p>
