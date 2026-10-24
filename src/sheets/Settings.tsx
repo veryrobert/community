@@ -18,17 +18,30 @@ import {
 } from '@/lib/data'
 import { DESIGN_AREAS, displayName, type Invite, type InviteRequest, type Profile, type Role } from '@/lib/types'
 
+// The same words, ignoring capitals and spacing
+const same = (a: string, b: string) => a.toLowerCase().replace(/\s+/g, ' ').trim() === b.toLowerCase().replace(/\s+/g, ' ').trim()
+// Distinct values members have entered, most used first
+const known = (values: string[]) => [...values.reduce((n, v) => v ? n.set(v, (n.get(v) ?? 0) + 1) : n, new Map<string, number>())]
+  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([v]) => v)
+
 export function Settings({ store, onChanged }: { store: Store; onChanged: () => void }) {
   const { me } = store
   const save = (fn: () => Promise<unknown>) => fn().then(onChanged)
+  const orgs = known(store.members.map(m => m.organisation))
+  const titles = known(store.members.map(m => m.job_title))
 
   return (
     <>
       <FieldGroup title="You">
         <Photo me={me} onChanged={onChanged} />
         <AutoInput label="Name" value={me.name ?? ''} required autoComplete="name" onSave={v => save(() => saveName(me.id, v))} />
-        <AutoInput label="Organisation" value={me.organisation} maxLength={160} autoComplete="organization" onSave={v => save(() => saveProfile(me.id, { organisation: v }))} />
-        <AutoInput label="Job title" value={me.job_title} maxLength={120} autoComplete="organization-title" onSave={v => save(() => saveProfile(me.id, { job_title: v }))} />
+        {/* Organisation and job title suggest what others have entered, and save a match in that spelling, so People stays consistent */}
+        <AutoInput label="Organisation" value={me.organisation} maxLength={160} autoComplete="off" list="known-organisations"
+          onSave={v => save(() => saveProfile(me.id, { organisation: orgs.find(o => same(o, v)) ?? v }))} />
+        <datalist id="known-organisations">{orgs.map(o => <option key={o} value={o} />)}</datalist>
+        <AutoInput label="Job title" value={me.job_title} maxLength={120} autoComplete="off" list="known-titles"
+          onSave={v => save(() => saveProfile(me.id, { job_title: titles.find(t => same(t, v)) ?? v }))} />
+        <datalist id="known-titles">{titles.map(t => <option key={t} value={t} />)}</datalist>
         <Field label="Area of design">
           <Picker label="Area of design" value={me.design_area} onChange={v => save(() => saveProfile(me.id, { design_area: v }))}
             options={[{ value: '', label: 'Choose one' }, ...DESIGN_AREAS.map(a => ({ value: a, label: a }))]} />

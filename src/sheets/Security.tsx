@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Factor } from '@supabase/supabase-js'
 import { FieldGroup } from '@/components/shell/Field'
+import { Button } from '@/components/ui/button'
 import { RowMenu } from '@/components/shell/RowMenu'
 import { useDialogs } from '@/components/shell/Dialogs'
 import { listAuthenticators, removeAuthenticator, signInMethods, signOutEverywhere } from '@/lib/auth'
@@ -53,17 +54,17 @@ export function Security() {
       {adding ? (
         <Enroll name={`Backup ${factors.length}`} onDone={() => { setAdding(false); refresh() }} />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className="self-start rounded-sm px-1 text-sm text-foreground outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
+        <Button variant="secondary" onClick={() => setAdding(true)} className="h-12 rounded-xl text-base md:text-sm">
           Add an authenticator
-        </button>
+        </Button>
       )}
 
-      <button type="button" className="self-start rounded-sm px-1 text-sm text-foreground outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      <Button variant="secondary" className="h-12 rounded-xl text-base md:text-sm"
         onClick={async () => {
           if (await confirm({ title: 'Sign out everywhere?', body: 'Every device signed in to this account is signed out, including this one.', action: 'Sign out everywhere', destructive: true })) signOutEverywhere()
         }}>
         Sign out of all devices
-      </button>
+      </Button>
       {error && <p role="alert" className="px-1 text-xs text-destructive">{error}</p>}
     </FieldGroup>
   )

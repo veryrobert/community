@@ -13,9 +13,10 @@ function useAutosave(value: string, save: (v: string) => Promise<unknown>, requi
   const [error, setError] = useState<string | null>(null)
   const last = useRef(value)
 
-  // Take the stored value when it changes elsewhere, unless this field has unsaved edits
+  // Take the stored value when it changes, including the saved form of what was just typed,
+  // unless this field has unsaved edits
   useEffect(() => {
-    if (draft === last.current) setDraft(value)
+    if (draft.trim() === last.current.trim()) setDraft(value)
     last.current = value
   }, [value])
 
@@ -30,12 +31,16 @@ function useAutosave(value: string, save: (v: string) => Promise<unknown>, requi
     if (next === value.trim()) return
     if (required && !next) { setDraft(value); return }
     setStatus('saving')
+    // Recorded before the save, so when the stored value comes back (perhaps in a matched spelling)
+    // the field takes it rather than treating it as someone else's change
+    const before = last.current
+    last.current = next
     try {
       await save(next)
-      last.current = next
       setStatus('saved')
       setError(null)
     } catch (e) {
+      last.current = before
       setStatus('error')
       setError((e as Error).message)
     }
