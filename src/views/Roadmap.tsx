@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { Triangle } from 'lucide-react'
 
 // Facilitators drag a card to another column to change its status. On phones it's a press and
-// hold, so a quick swipe still scrolls the columns. Keyboard: focus a card's handle, Space, arrows, Space.
+// hold, so a quick swipe still scrolls the page. Keyboard: focus a card's handle, Space, arrows, Space.
 export function Roadmap({ store, onOpen, openId, onError }: {
   store: Store
   onOpen: (id: number) => void
@@ -42,7 +42,7 @@ export function Roadmap({ store, onOpen, openId, onError }: {
   }
 
   const board = (
-    <div className="flex snap-x snap-mandatory scroll-px-5 gap-6 overflow-x-auto px-5 pb-6 sm:grid sm:grid-cols-4 sm:overflow-visible sm:pr-20">
+    <div className="flex flex-col gap-10 px-5 pb-6 sm:grid sm:grid-cols-4 sm:gap-6 sm:pr-20">
       {ROADMAP.map(status => {
         const ideas = store.ideas
           .filter(i => statusOf(i) === status)
@@ -83,7 +83,7 @@ export function Roadmap({ store, onOpen, openId, onError }: {
 function Column({ status, count, enabled, children }: { status: Status; count: number; enabled: boolean; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled: !enabled })
   return (
-    <section ref={setNodeRef} aria-label={STATUS[status]} className={cn('w-[78vw] shrink-0 snap-start rounded-lg transition-colors sm:w-auto', isOver && 'bg-accent/50')}>
+    <section ref={setNodeRef} aria-label={STATUS[status]} className={cn('rounded-lg transition-colors', isOver && 'bg-accent/50')}>
       <h2 className="flex items-baseline justify-between border-b border-border pb-2 text-sm text-foreground">
         {STATUS[status]}
         <span className="font-mono text-xs text-muted-foreground tabular-nums">{count}</span>
