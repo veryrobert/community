@@ -9,8 +9,8 @@ import {
 import { displayName, type Profile } from '@/lib/types'
 import type { Store } from '@/lib/data'
 
-const NO_ORG = 'Organisation not given'
-const ALL = ''
+const NO_ORG = '' // people without an organisation come last, under no heading
+const ALL = '*'
 
 // The member directory: everyone who hasn't opted out, grouped by organisation, with what they've
 // chosen to share. Search covers names, organisations, titles, areas and bios.
@@ -50,7 +50,7 @@ export function People({ store }: { store: Store }) {
             <DropdownMenuContent align="end" className="max-h-80 min-w-60">
               <DropdownMenuRadioGroup value={org} onValueChange={setOrg}>
                 <DropdownMenuRadioItem value={ALL} className="h-10 text-sm">All organisations</DropdownMenuRadioItem>
-                {orgs.map(([o, n]) => (
+                {orgs.filter(([o]) => o !== NO_ORG).map(([o, n]) => (
                   <DropdownMenuRadioItem key={o} value={o} className="h-10 gap-3 text-sm">
                     <span className="min-w-0 flex-1 truncate">{o}</span>
                     <span className="font-mono text-xs text-muted-foreground tabular-nums">{n}</span>
@@ -68,9 +68,11 @@ export function People({ store }: { store: Store }) {
 
       {groups.length ? groups.map(([o, people]) => (
         <section key={o} className="pt-8">
-          <h2 className="flex items-baseline justify-between px-1 pb-1 text-xs text-muted-foreground">
-            {o}<span className="font-mono tabular-nums">{people.length}</span>
-          </h2>
+          {o !== NO_ORG && (
+            <h2 className="flex items-baseline justify-between px-1 pb-1 text-xs text-muted-foreground">
+              {o}<span className="font-mono tabular-nums">{people.length}</span>
+            </h2>
+          )}
           <ul>{people.map(m => <Person key={m.id} m={m} me={m.id === store.me.id} />)}</ul>
         </section>
       )) : (
@@ -83,19 +85,24 @@ export function People({ store }: { store: Store }) {
 function Person({ m, me }: { m: Profile; me: boolean }) {
   const links = 'inline-flex items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
   return (
-    <li className="flex gap-4 border-t border-border py-4">
-      <Avatar name={displayName(m)} url={m.avatar_url} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="text-sm text-foreground">
-          {displayName(m)}
-          {me && <span className="text-muted-foreground"> (you)</span>}
-        </p>
-        {(m.job_title || m.design_area) && (
-          <p className="text-xs text-muted-foreground">{[m.job_title, m.design_area].filter(Boolean).join(' · ')}</p>
-        )}
-        {m.bio && <p className="pt-1 text-sm text-muted-foreground">{m.bio}</p>}
+    <li className="flex flex-col gap-2 border-t border-border py-4">
+      {/* The photo centred against the name and title; bio and links below, in line with the name */}
+      <div className="flex items-center gap-4">
+        <Avatar name={displayName(m)} url={m.avatar_url} />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="text-sm text-foreground">
+            {displayName(m)}
+            {me && <span className="text-muted-foreground"> (you)</span>}
+          </p>
+          {(m.job_title || m.design_area) && (
+            <p className="text-xs text-muted-foreground">{[m.job_title, m.design_area].filter(Boolean).join(' · ')}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col gap-1 pl-14 empty:hidden">
+        {m.bio && <p className="text-sm text-muted-foreground">{m.bio}</p>}
         {(m.linkedin || (m.show_email && m.email)) && (
-          <p className="flex flex-wrap gap-4 pt-1 text-xs text-muted-foreground">
+          <p className="flex flex-wrap gap-4 text-xs text-muted-foreground">
             {m.linkedin && (
               <a href={m.linkedin} target="_blank" rel="noopener noreferrer" className={links}>
                 LinkedIn<ArrowUpRight className="size-3.5" strokeWidth={1.5} aria-hidden />
