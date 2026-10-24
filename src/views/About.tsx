@@ -51,7 +51,7 @@ export function Join({ onAbout }: { onAbout: () => void }) {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-10 px-5">
       <div className="flex flex-col gap-4">
         <h1 className="text-xl text-foreground">How to join</h1>
-        <p className="text-base text-muted-foreground">Membership is by invitation. It takes three steps.</p>
+        <p className="text-base text-muted-foreground">Membership is by invitation, and currently open to people doing design work in the Irish public and civil service. It takes three steps.</p>
       </div>
       {/* 1 → 2 → 3: across on desktop, stacked on phones */}
       <ol className="grid gap-3 sm:grid-cols-3">

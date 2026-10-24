@@ -64,7 +64,7 @@ export function SignIn() {
           <div ref={captcha.box} />
           {captcha.error && <p role="alert" className="px-1 text-xs text-destructive">{captcha.error}</p>}
           <p className="px-1 text-center text-xs text-muted-foreground">
-            {name ?? 'This'} is an invite-only community. Sign in with the email address you were invited with, or a GitHub account that uses it.
+            {name ?? 'This'} is an invite-only community, currently for people doing design work in the Irish public and civil service. Sign in with the email address you were invited with, or a GitHub account that uses it.
           </p>
           <nav aria-label="About" className="flex justify-center gap-4 px-1 text-xs text-muted-foreground">
             <button type="button" onClick={() => setPage('about')} className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">About the community</button>
