@@ -25,21 +25,21 @@ export function Security() {
   return (
     <FieldGroup title="Security">
       <p className="px-1 text-xs text-muted-foreground">
-        Signs in with {methods.map(m => METHOD[m] ?? m).join(' or ') || 'email code'}, then an authenticator code.
-        GitHub works when its primary email is the one you were invited with.
+        Signs in with {methods.map(m => METHOD[m] ?? m).join(' or ') || 'email code'}{factors.length ? ', then your authenticator code' : ''}.
+        {factors.length ? '' : ' For extra protection, add an authenticator app: signing in will then ask for its code too.'}
       </p>
 
       <ul className="flex flex-col">
         {factors.map(f => (
           <li key={f.id} className="border-t border-border py-1">
             <RowMenu label={f.friendly_name ?? 'Authenticator'} className="flex items-baseline justify-between gap-3 px-1 py-2"
-              actions={factors.length > 1 ? [{
+              actions={[{
                 label: 'Remove', destructive: true, onSelect: async () => {
-                  if (await confirm({ title: 'Remove authenticator?', body: 'You’ll sign in with your other one.', action: 'Remove', destructive: true })) {
+                  if (await confirm({ title: 'Remove authenticator?', body: factors.length > 1 ? 'You’ll sign in with your other one.' : 'You’ll sign in with just the email code.', action: 'Remove', destructive: true })) {
                     removeAuthenticator(f.id).then(refresh).catch(e => setError(e.message))
                   }
                 },
-              }] : []}>
+              }]}>
               <span className="text-sm text-foreground">{f.friendly_name ?? 'Authenticator'}</span>
               <span className="text-xs text-muted-foreground">Added {date(f.created_at)}</span>
             </RowMenu>

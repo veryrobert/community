@@ -12,8 +12,8 @@ import { About, Join } from './About'
 // GitHub sign-in needs a GitHub OAuth app enabled in Supabase first; until then the button stays hidden
 const GITHUB = import.meta.env.VITE_GITHUB_SIGNIN === 'on'
 
-// Two ways in, both invite-only: GitHub, or a code sent to the invited email. Either way the
-// next screen asks for the authenticator code.
+// Two ways in, both invite-only: GitHub, or a code sent to the invited email. Members who've added
+// an authenticator are then asked for its code.
 export function SignIn() {
   const [email, setEmail] = useState<string | null>(null)
   const [page, setPage] = useState<'signin' | 'about' | 'join'>('signin')
@@ -47,7 +47,6 @@ export function SignIn() {
         </header>
         {email ? (<>
           <div className="flex flex-col gap-1 px-1">
-            <p className="text-xs text-muted-foreground">Step 1 of 2</p>
             <p className="text-sm text-foreground">Check your email</p>
             <p className="text-xs text-muted-foreground">We sent a 6-digit code to {email}. It expires in 10 minutes.</p>
           </div>

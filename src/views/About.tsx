@@ -44,7 +44,7 @@ const CONTACT_EMAIL = 'hello@example.com'
 const STEPS = [
   { title: 'Ask to join', body: 'Tell us a little about yourself using the form below.' },
   { title: 'We’ll take a look', body: 'A facilitator will review your request, usually within a week.' },
-  { title: 'Welcome in', body: 'You’ll get an email invite. Sign in with that address, then set up an authenticator app.' },
+  { title: 'Welcome in', body: 'You’ll get an email invite. Sign in with that address and the code we email you.' },
 ]
 
 // How to join, for people not yet in: three steps, then the request form and who to contact. Links back to About.

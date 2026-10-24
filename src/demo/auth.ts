@@ -1,13 +1,13 @@
 // Stand-in for lib/auth.ts in the demo. Sign-in and two-factor run through the real screens,
-// with every code being 123456. Signing in with you@example.ie (or GitHub) is a returning member;
-// any other email walks through a new member's first sign-in.
+// with every code being 123456. Signing in with you@example.ie (or GitHub) is a returning member
+// with an authenticator; any other email is a new member, signed in by the email code alone.
 import { useSyncExternalStore } from 'react'
 import type { Factor } from '@supabase/supabase-js'
 import { becomeNewMember } from './data'
 
 const CODE = '123456'
 let session: { user: { id: string } } | null = { user: { id: 'me' } }
-let gate: 'enroll' | 'verify' | 'ok' = 'ok'
+let gate: 'verify' | 'ok' = 'ok'
 const subs = new Set<() => void>()
 const emit = () => subs.forEach(f => f())
 const subscribe = (f: () => void) => { subs.add(f); return () => { subs.delete(f) } }
@@ -15,9 +15,8 @@ const wrongCode = () => { throw new Error(`That code didn’t match. In the demo
 
 export function useSession() { return useSyncExternalStore(subscribe, () => session) }
 
-export const SESSION_HOURS = 12
-export const IDLE_MINUTES = 30
-export type Gate = 'loading' | 'enroll' | 'verify' | 'ok'
+export const SESSION_DAYS = 30
+export type Gate = 'loading' | 'verify' | 'ok'
 
 export const signOut = async () => { session = null; emit() }
 export const signOutEverywhere = signOut
@@ -28,7 +27,7 @@ export async function verifyCode(email: string, code: string) {
   const returning = email.trim().toLowerCase() === 'you@example.ie'
   if (!returning) { becomeNewMember(email); factors = [] }
   session = { user: { id: 'me' } }
-  gate = returning ? 'verify' : 'enroll'
+  gate = returning ? 'verify' : 'ok' // a returning member has an authenticator; a new one hasn't
   emit()
 }
 export function useGate() {
@@ -36,7 +35,6 @@ export function useGate() {
   return { gate: g as Gate, recheck: () => {} }
 }
 export function useSessionLimits() {}
-export function noteActivity() {}
 export function readSignOutReason() { return null }
 export function clearSignOutReason() {}
 

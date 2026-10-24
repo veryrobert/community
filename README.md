@@ -31,19 +31,19 @@ That opens the real app on sample data held in the browser. Every code is 123456
    supabase functions deploy reset-2fa
    ```
    In Database > Webhooks, add one: table `outbox`, event Insert, type Supabase Edge Functions, function `notify`, with an HTTP header `x-webhook-secret` set to the same random string. Without this step everything works except the emails.
-6. Sign in with your email, set up your authenticator, then check the About text and invite people in Admin. The `reset-2fa` function (deployed in step 5, needing no Resend) lets facilitators reset a member's two-factor; deploy it even if you skip email.
+6. Sign in with your email, then check the About text and invite people in Admin. The `reset-2fa` function (deployed in step 5, needing no Resend) lets facilitators remove a member's authenticator if they lose their phone; deploy it even if you skip email.
 
 ## Security
 
 - **Invite only.** A trigger on `auth.users` refuses any new account whose email isn't in `invites`, whichever way they sign in. GitHub sign-in uses the GitHub account's primary verified email, so it has to match the invite.
-- **Two-factor for everyone.** After the email code or GitHub, every session must pass an authenticator code (TOTP). The app asks for one before loading anything, but the real rule is in the database: every table has a restrictive policy requiring `aal2` in the session's token, so a session that skipped two-factor reads and writes nothing, whatever the app does.
-- **Recovery.** Members can add a backup authenticator in Settings, and can't remove their last one. A facilitator can reset a member's two-factor (`reset-2fa`, which checks the caller is a facilitator who has passed two-factor and can't reset themselves).
+- **Two-factor, optional.** The emailed code (or GitHub) is enough to sign in. Anyone can add an authenticator app (TOTP) in Settings; from then on every session must also pass its code. The real rule is in the database: every table has a restrictive policy (`two_factor_ok` in `schema.sql`) that refuses a session which skipped the authenticator of someone who has one, whatever the app does.
+- **Recovery.** Members can add a backup authenticator in Settings, or remove theirs. A facilitator can remove a member's authenticators (`reset-2fa`), after which they sign in with the email code alone.
 - **No passwords.** Sign-in is a one-time email code (10-minute expiry) or GitHub, so there's no password to reuse, leak or phish.
 - **CAPTCHA.** Cloudflare Turnstile on the email step, checked by Supabase, so bots can't use the sign-in form to send codes. Invisible unless Cloudflare wants a person to tick a box. GitHub sign-in has GitHub's own protection.
-- **Time limits.** A session lasts 12 hours from sign-in; then it's sign in again, email or GitHub and authenticator. The database enforces this from the sign-in times in the session's token (`signed_in_recently` in `schema.sql`), so it holds without Supabase Pro and whatever the app does. The app also signs out after 30 minutes with no input on any tab, checked when you come back to it. Both numbers are at the top of `src/lib/auth.ts`; the 12 is also in `schema.sql`.
+- **Time limits.** A sign-in lasts 30 days on a device; then it's sign in again. The database enforces this from the sign-in times in the session's token (`signed_in_recently` in `schema.sql`), so it holds without Supabase Pro and whatever the app does. The number is `SESSION_DAYS` at the top of `src/lib/auth.ts`, and in `schema.sql`.
 - **Sessions.** Settings has Sign out of all devices. Supabase rotates refresh tokens and revokes a session when a used one is replayed.
 - **The page.** The build adds a Content Security Policy (scripts only from the site, network only to this Supabase project) and refuses to run inside another site's frame. Markdown renders without HTML. The anon key in the page is public by design; the service key exists only inside the Edge Functions.
-- **On Supabase Pro.** Its own time-box and inactivity settings can be set to match, which ends sessions on Supabase's side too, not only by refusing data.
+- **On Supabase Pro.** Its own time-box setting can be set to match, which ends sessions on Supabase's side too, not only by refusing data.
 
 ## How it works
 

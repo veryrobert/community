@@ -70,7 +70,7 @@ A private, invite-only ideas board for a community of practice (Nolt-style), on 
 
 ### Data and security
 - Data in `src/lib/data.ts`, sign-in in `src/lib/auth.ts`; schema, policies, triggers and the invite gate in `supabase/schema.sql`. Any rule about who may do what belongs in the database, not only the interface.
-- Sign-in: GitHub or an emailed 6-digit code, then an authenticator code, always. Every table has a restrictive policy requiring `aal2` and a sign-in within 12 hours: a new table must be added to that list. Session limits: 12 hours (database and `auth.ts`), 30 minutes idle (app). CAPTCHA is Turnstile via `lib/turnstile.ts`, off without a site key.
+- Sign-in: GitHub or an emailed 6-digit code. An authenticator is optional (Settings); once someone adds one, their sign-in asks for its code too. Every table has a restrictive policy requiring `two_factor_ok()` and a sign-in within 30 days: a new table must be added to that list. Sessions last 30 days (`SESSION_DAYS` in `auth.ts`, and `schema.sql`); no idle sign-out. CAPTCHA is Turnstile via `lib/turnstile.ts`, off without a site key.
 - Signed-out visitors can only call `about()` and `request_invite()`.
 - Codes use `CodeField`: numeric keypad, autofill, submits on the sixth digit.
 

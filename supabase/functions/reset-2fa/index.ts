@@ -1,6 +1,5 @@
-// Lets a facilitator clear another member's two-factor, for a lost or replaced phone.
-// The member's next sign-in then asks them to set it up again. Facilitators can't reset their own:
-// they add a second authenticator in Settings, or another facilitator resets it.
+// Lets a facilitator remove another member's authenticators, for a lost or replaced phone. The member
+// then signs in with the email code alone. Facilitators remove their own in Settings.
 import { createClient } from 'npm:@supabase/supabase-js@2.49.4'
 
 const URL = Deno.env.get('SUPABASE_URL')!
@@ -18,9 +17,12 @@ Deno.serve(async req => {
   const { data: { user }, error } = await admin.auth.getUser(token)
   if (error || !user) return fail(401, 'Sign in again.')
 
-  // The token is verified above, so its claims can be read. The caller must themselves have passed 2FA.
+  // The token is verified above, so its claims can be read. A caller who has an authenticator must
+  // have passed it this session, as the database requires (two_factor_ok)
   const claims = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
-  if (claims.aal !== 'aal2') return fail(403, 'Confirm your own two-factor first.')
+  const { data: own } = await admin.auth.admin.mfa.listFactors({ userId: user.id })
+  const hasAuthenticator = (own?.factors ?? []).some(f => f.status === 'verified')
+  if (hasAuthenticator && claims.aal !== 'aal2') return fail(403, 'Enter your own authenticator code first.')
 
   const { data: me } = await admin.from('profiles').select('role').eq('id', user.id).single()
   if (me?.role !== 'facilitator') return fail(403, 'Only facilitators can reset two-factor.')

@@ -476,19 +476,30 @@ create policy "facilitators manage update links" on update_ideas for all to auth
   using (is_facilitator()) with check (is_facilitator());
 
 -- Session time limit, enforced here so it doesn't depend on the app or a paid plan.
--- The token lists when each sign-in step happened (amr); the oldest must be within 12 hours.
--- Keep in step with SESSION_HOURS in src/lib/auth.ts.
+-- The token lists when each sign-in step happened (amr); the oldest must be within 30 days.
+-- Keep in step with SESSION_DAYS in src/lib/auth.ts.
 create function signed_in_recently() returns boolean
 language sql stable as $$
   select coalesce(
     (select min((m ->> 'timestamp')::bigint) from jsonb_array_elements(auth.jwt() -> 'amr') m)
-      > extract(epoch from now()) - 12 * 3600,
+      > extract(epoch from now()) - 30 * 24 * 3600,
     false)
 $$;
 
--- Two-factor, within the time limit, is required to touch any data. Every table gets a restrictive
--- policy, which is ANDed with the policies above: whatever they allow, the session must also have
--- passed 2FA (aal2) in the last 12 hours. So a stolen email login, GitHub session or old token reads nothing.
+-- Two-factor is optional: the emailed code is enough, but anyone who has added an authenticator
+-- must pass it (aal2), so adding one keeps protecting them
+create function has_authenticator() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from auth.mfa_factors where user_id = auth.uid() and status = 'verified')
+$$;
+
+create function two_factor_ok() returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(auth.jwt() ->> 'aal', '') = 'aal2' or not has_authenticator()
+$$;
+
+-- Every table gets a restrictive policy, ANDed with the policies above: whatever they allow, the
+-- session must be from the last 30 days, and must have passed two-factor if the member has set it up.
 do $$
 declare t text;
 begin
@@ -496,10 +507,9 @@ begin
     'idea_people', 'comments', 'comment_likes', 'updates', 'update_ideas', 'outbox', 'invite_requests']
   loop
     execute format(
-      'create policy "requires recent two-factor" on %I as restrictive for all to authenticated
-         using ((select auth.jwt() ->> %L) = %L and (select signed_in_recently()))
-         with check ((select auth.jwt() ->> %L) = %L and (select signed_in_recently()))',
-      t, 'aal', 'aal2', 'aal', 'aal2');
+      'create policy "requires recent sign-in" on %I as restrictive for all to authenticated
+         using ((select two_factor_ok()) and (select signed_in_recently()))
+         with check ((select two_factor_ok()) and (select signed_in_recently()))', t);
   end loop;
 end $$;
 
@@ -514,11 +524,11 @@ values ('avatars', 'avatars', true, 1048576, array['image/webp', 'image/jpeg', '
 
 create policy "members add their photo" on storage.objects for insert to authenticated
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text
-    and (select auth.jwt() ->> 'aal') = 'aal2');
+    and (select public.two_factor_ok()));
 create policy "members replace their photo" on storage.objects for update to authenticated
-  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text and (select auth.jwt() ->> 'aal') = 'aal2');
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text and (select public.two_factor_ok()));
 create policy "members remove their photo" on storage.objects for delete to authenticated
-  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text and (select auth.jwt() ->> 'aal') = 'aal2');
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text and (select public.two_factor_ok()));
 
 -- Nothing for signed-out visitors
 revoke all on all tables in schema public from anon;

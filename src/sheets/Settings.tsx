@@ -184,8 +184,8 @@ export function Facilitation({ store, onChanged, section }: { store: Store; onCh
                 <RowMenu label={`${displayName(m)}, ${m.role}`} className="flex items-center justify-between gap-3 px-1 py-2"
                   actions={m.id === store.me.id ? [] : [
                     { label: `Make ${other}`, onSelect: () => act(() => setRole(m.id, other)) },
-                    { label: 'Reset two-factor', destructive: true, onSelect: async () => {
-                      if (await confirm({ title: `Reset ${displayName(m)}’s two-factor?`, body: 'Their authenticators are removed. Next time they sign in, they set up a new one. Do this only once you’re sure it’s them asking.', action: 'Reset two-factor', destructive: true })) {
+                    { label: 'Remove authenticator', destructive: true, onSelect: async () => {
+                      if (await confirm({ title: `Remove ${displayName(m)}’s authenticator?`, body: 'Their authenticators are removed, so they sign in with just the email code. They can add a new one in Settings. Do this only once you’re sure it’s them asking.', action: 'Remove authenticator', destructive: true })) {
                         act(() => resetTwoFactor(m.id))
                       }
                     } },

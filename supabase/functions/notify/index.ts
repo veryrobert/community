@@ -92,8 +92,8 @@ async function invite(record: Row) {
     '',
     'To join:',
     `1. Go to ${SITE}`,
-    `2. Enter this email address (${record.email}) and we’ll send you a 6-digit code`,
-    '3. Set up an authenticator app on your phone when asked',
+    `2. Enter this email address (${record.email})`,
+    '3. Type in the 6-digit code we email you',
     '',
     'See you there.',
   ]

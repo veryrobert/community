@@ -16,7 +16,7 @@ import { configured } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { deleteIdea, saveName, signOut, useSession, useStore, type Store } from '@/lib/data'
 import { useGate, useSessionLimits } from '@/lib/auth'
-import { TwoFactorSetup, TwoFactorVerify } from '@/views/TwoFactor'
+import { TwoFactorVerify } from '@/views/TwoFactor'
 import { displayName, type Idea } from '@/lib/types'
 import { SignIn } from '@/views/SignIn'
 import { Board } from '@/views/Board'
@@ -82,7 +82,6 @@ export default function App() {
 function Gated({ userId }: { userId: string }) {
   const { gate, recheck } = useGate(userId)
   if (gate === 'loading') return null
-  if (gate === 'enroll') return <TwoFactorSetup onDone={recheck} />
   if (gate === 'verify') return <TwoFactorVerify onDone={recheck} />
   return <Signed userId={userId} />
 }

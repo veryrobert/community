@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Factor } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 
-// Sign-in and two-factor. Signing in (email code or GitHub) gives an aal1 session; the database
-// refuses every read and write until the session reaches aal2 by passing an authenticator code.
+// Sign-in and optional two-factor. The emailed code (or GitHub) is enough to sign in. Anyone who has
+// added an authenticator must also pass its code (aal2); the database enforces that (two_factor_ok).
 
 const here = () => location.origin + location.pathname
 
@@ -31,24 +31,12 @@ export async function verifyCode(email: string, token: string) {
   if (error) throw new Error(/expired|invalid/i.test(error.message) ? 'That code is wrong or has expired. Send a new one.' : error.message)
 }
 
-export const signOut = () => { forgetActivity(); return supabase.auth.signOut() }
+export const signOut = () => supabase.auth.signOut()
 export const signOutEverywhere = () => supabase.auth.signOut({ scope: 'global' })
 
-// Time limits. The database enforces the first (signed_in_recently in schema.sql); the app signs
-// out at the same point so nobody sits on a screen that can't load. The second is the app's own:
-// no input for this long, on any tab, and the next look at the app finds it signed out.
-export const SESSION_HOURS = 12
-export const IDLE_MINUTES = 30
-
-const ACTIVE_KEY = 'community:last-active'
-function forgetActivity() { try { localStorage.removeItem(ACTIVE_KEY) } catch { /* private mode */ } }
-export function noteActivity() { try { localStorage.setItem(ACTIVE_KEY, String(Date.now())) } catch { /* private mode */ } }
-function idleTooLong() {
-  try {
-    const last = Number(localStorage.getItem(ACTIVE_KEY))
-    return last > 0 && Date.now() - last > IDLE_MINUTES * 60_000
-  } catch { return false }
-}
+// How long a sign-in lasts on a device. The database enforces it (signed_in_recently in schema.sql);
+// the app signs out at the same point so nobody sits on a screen that can't load.
+export const SESSION_DAYS = 30
 
 // When the oldest sign-in step in this session happened, from the access token's amr claim
 async function signedInAt() {
@@ -62,11 +50,10 @@ async function signedInAt() {
   } catch { return null }
 }
 
-// Which limit has passed, if any
+// Whether this sign-in has run out
 async function expiry(): Promise<string | null> {
-  if (idleTooLong()) return `Signed out after ${IDLE_MINUTES} minutes without activity.`
   const at = await signedInAt()
-  if (at !== null && Date.now() - at > SESSION_HOURS * 3_600_000) return `Signed out after ${SESSION_HOURS} hours. Sign in again to carry on.`
+  if (at !== null && Date.now() - at > SESSION_DAYS * 86_400_000) return `Signed out after ${SESSION_DAYS} days. Sign in again to carry on.`
   return null
 }
 
@@ -83,31 +70,22 @@ export function clearSignOutReason() {
   try { sessionStorage.removeItem(REASON_KEY) } catch { /* private mode */ }
 }
 
-// Watches for input while the app is open; on returning to the tab, checks both limits
+// On returning to the tab, and hourly while it's open, checks the sign-in hasn't run out
 export function useSessionLimits() {
   useEffect(() => {
-    noteActivity()
-    let last = 0
-    const active = () => {
-      const now = Date.now()
-      if (now - last > 15_000) { last = now; noteActivity() } // a write every 15s at most
-    }
     const check = () => { expiry().then(reason => { if (reason) expire(reason) }) }
-    const events = ['pointerdown', 'keydown', 'scroll', 'touchstart'] as const
-    events.forEach(e => addEventListener(e, active, { passive: true, capture: true }))
     const onVisible = () => { if (document.visibilityState === 'visible') check() }
     document.addEventListener('visibilitychange', onVisible)
-    const timer = setInterval(check, 60_000)
+    const timer = setInterval(check, 3_600_000)
     return () => {
-      events.forEach(e => removeEventListener(e, active, { capture: true }))
       document.removeEventListener('visibilitychange', onVisible)
       clearInterval(timer)
     }
   }, [])
 }
 
-// Where this session stands: needs setting up (no authenticator yet), needs a code, or done
-export type Gate = 'loading' | 'enroll' | 'verify' | 'ok'
+// Where this session stands: needs an authenticator code (only for those who've added one), or done
+export type Gate = 'loading' | 'verify' | 'ok'
 
 export function useGate(userId: string | undefined) {
   const [gate, setGate] = useState<Gate>('loading')
@@ -120,9 +98,7 @@ export function useGate(userId: string | undefined) {
       supabase.auth.mfa.listFactors(),
     ])
     const verified = factors?.totp.length ?? 0
-    if (!verified) setGate('enroll')
-    else if (level?.currentLevel !== 'aal2') setGate('verify')
-    else { noteActivity(); setGate('ok') }
+    setGate(verified && level?.currentLevel !== 'aal2' ? 'verify' : 'ok')
   }, [userId])
   useEffect(() => { check() }, [check])
   return { gate, recheck: check }
