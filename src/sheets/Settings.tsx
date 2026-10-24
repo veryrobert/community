@@ -147,8 +147,11 @@ export function Facilitation({ store, onChanged, section }: { store: Store; onCh
                   { label: 'Decline', destructive: true, onSelect: () => act(() => clearRequest(r.id).then(refreshAll)) },
                 ]}>
                 <span className="text-sm text-foreground">{r.name}</span>
-                <span className="text-xs text-muted-foreground">{[r.email, r.organisation].filter(Boolean).join(', ')}</span>
+                <span className="text-xs text-muted-foreground">{r.email}{r.email_kind === 'personal' ? ' (personal)' : ''}</span>
+                <span className="text-xs text-muted-foreground">{[r.role, r.organisation].filter(Boolean).join(', ')}</span>
+                <span className="text-xs text-muted-foreground">{[r.design_area, r.practice].filter(Boolean).join(' · ')}</span>
                 {r.note && <span className="mt-1 text-sm text-muted-foreground">{r.note}</span>}
+                {r.heard && <span className="text-xs text-muted-foreground">Heard via {r.heard}</span>}
               </RowMenu>
             </li>
           ))}

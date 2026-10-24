@@ -114,6 +114,11 @@ create table invite_requests (
   email text not null check (char_length(email) between 3 and 254),
   organisation text not null default '' check (char_length(organisation) <= 160),
   note text not null default '' check (char_length(note) <= 1000),
+  email_kind text not null default 'work' check (email_kind in ('work', 'personal')),
+  role text not null default '' check (char_length(role) <= 120),
+  design_area text not null default '' check (char_length(design_area) <= 80),
+  practice text not null default '' check (char_length(practice) <= 80),
+  heard text not null default '' check (char_length(heard) <= 200),
   created_at timestamptz not null default now()
 );
 
@@ -505,7 +510,11 @@ $$;
 
 -- Asking to join. Quietly does nothing for someone already invited, a member, or anyone who asked
 -- in the last day, so it can't be used to find out who's in the community or to flood the list.
-create function request_invite(p_name text, p_email text, p_organisation text, p_note text) returns void
+create function request_invite(
+  p_name text, p_email text, p_organisation text, p_note text,
+  p_email_kind text default 'work', p_role text default '', p_design_area text default '',
+  p_practice text default '', p_heard text default ''
+) returns void
 language plpgsql security definer set search_path = public as $$
 declare e text := lower(trim(p_email));
 begin
@@ -515,9 +524,11 @@ begin
     or (select count(*) from invite_requests where created_at > now() - interval '1 hour') > 30 then
     return;
   end if;
-  insert into invite_requests (name, email, organisation, note)
-  values (trim(p_name), e, coalesce(trim(p_organisation), ''), coalesce(trim(p_note), ''));
+  insert into invite_requests (name, email, organisation, note, email_kind, role, design_area, practice, heard)
+  values (trim(p_name), e, coalesce(trim(p_organisation), ''), coalesce(trim(p_note), ''),
+    case when p_email_kind = 'personal' then 'personal' else 'work' end,
+    coalesce(trim(p_role), ''), coalesce(trim(p_design_area), ''), coalesce(trim(p_practice), ''), coalesce(trim(p_heard), ''));
 end $$;
 
-revoke all on function about(), request_invite(text, text, text, text) from public;
-grant execute on function about(), request_invite(text, text, text, text) to anon, authenticated;
+revoke all on function about(), request_invite(text, text, text, text, text, text, text, text, text) from public;
+grant execute on function about(), request_invite(text, text, text, text, text, text, text, text, text) to anon, authenticated;

@@ -27,7 +27,11 @@ export type Person = { user_id: string; role: IdeaRole; name: string }
 export type Notify = { notify_comments: boolean; notify_status: boolean; notify_ideas: boolean }
 export type Profile = { id: string; email: string; name: string | null; role: Role; avatar_url: string | null } & Notify
 export type Community = { name: string; vision: string; about: string; guidelines: string; conduct: string }
-export type InviteRequest = { id: number; name: string; email: string; organisation: string; note: string; created_at: string }
+export type InviteRequest = {
+  id: number; name: string; email: string; email_kind: 'work' | 'personal'; organisation: string; role: string
+  design_area: string; practice: string; note: string; heard: string; created_at: string
+}
+export type JoinRequest = Omit<InviteRequest, 'id' | 'created_at'>
 export type Goal = { id: number; title: string; position: number }
 export type Tag = { id: number; name: string; position: number }
 

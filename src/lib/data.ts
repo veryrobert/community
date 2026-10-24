@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import { displayName, type Tag, type Comment, type Community, type InviteRequest, type Goal, type Idea, type HideReason, type IdeaRole, type Invite, type Notify, type Person, type Profile, type Role, type Status, type Update } from './types'
+import { displayName, type Tag, type Comment, type Community, type InviteRequest, type JoinRequest, type Goal, type Idea, type HideReason, type IdeaRole, type Invite, type Notify, type Person, type Profile, type Role, type Status, type Update } from './types'
 
 // Turns a Supabase error into something worth showing
 function check<T>({ data, error }: { data: T; error: { message: string } | null }): T {
@@ -262,8 +262,11 @@ export async function loadAbout() {
   return (data as Community[])[0]
 }
 
-export async function requestInvite(r: { name: string; email: string; organisation: string; note: string }) {
-  const { error } = await supabase.rpc('request_invite', { p_name: r.name, p_email: r.email, p_organisation: r.organisation, p_note: r.note })
+export async function requestInvite(r: JoinRequest) {
+  const { error } = await supabase.rpc('request_invite', {
+    p_name: r.name, p_email: r.email, p_organisation: r.organisation, p_note: r.note, p_email_kind: r.email_kind,
+    p_role: r.role, p_design_area: r.design_area, p_practice: r.practice, p_heard: r.heard,
+  })
   if (error) throw new Error(error.message)
 }
 

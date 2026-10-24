@@ -20,7 +20,7 @@ type IdeaRow = { id: number; title: string; body: string; goal_id: number | null
 let nextId = 100
 const db = {
   community: { name: 'Design for Public', vision: 'A connected community of designers across the public service, sharing what works so services improve for the people who use them.', about: ABOUT, guidelines: GUIDELINES, conduct: CONDUCT } as Community,
-  requests: [{ id: 1, name: 'Sinéad', email: 'sinead@example.ie', organisation: 'Service designer, Department of Social Protection', note: 'Working on the jobseeker journey and would love to share what we’ve learned.', created_at: ago(8) }] as InviteRequest[],
+  requests: [{ id: 1, name: 'Sinéad', email: 'sinead@example.ie', email_kind: 'work', organisation: 'Department of Social Protection', role: 'Senior service designer', design_area: 'Service design', practice: 'I practise design day to day', heard: 'A colleague', note: 'Working on the jobseeker journey and would love to share what we’ve learned.', created_at: ago(8) }] as InviteRequest[],
   goals: [{ id: 1, title: 'Share methods and tools across departments', position: 1 }, { id: 2, title: 'Build design capability in every team', position: 2 }] as Goal[],
   tags: [{ id: 1, name: 'Research', position: 1 }, { id: 2, name: 'Training', position: 2 }, { id: 3, name: 'Tools', position: 3 }, { id: 4, name: 'Events', position: 4 }] as Tag[],
   ideas: [
