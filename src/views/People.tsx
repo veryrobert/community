@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowUpRight, BadgeCheck, ChevronDown, ChevronLeft, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { readPath, writePath } from '@/lib/route'
+import { onPathChange, readPath, useAddress } from '@/lib/route'
 import { shortOrganisation } from '@/lib/organisations'
 import { StatusLabel } from './IdeaRow'
 import { Input } from '@/components/ui/input'
@@ -31,7 +31,8 @@ const ALL = '*'
 // opens as a profile page of their own (/people/<id>).
 export function People({ store, onEditMe, onOpenIdea }: { store: Store; onEditMe: () => void; onOpenIdea: (id: number) => void }) {
   const [personId, setPersonId] = useState<string | null>(personFromAddress)
-  useEffect(() => { writePath(personId ? `people/${personId}` : 'people') }, [personId])
+  useAddress(personId ? `people/${personId}` : 'people')
+  useEffect(() => onPathChange(() => { if (readPath()[0] === 'people') setPersonId(personFromAddress()) }), [])
   const person = personId ? store.members.find(m => m.id === personId && (m.in_directory || m.id === store.me.id)) : undefined
   const [query, setQuery] = useState('')
   const [org, setOrg] = useState(ALL)

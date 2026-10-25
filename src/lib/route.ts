@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 // Clean addresses: /, /roadmap, /people, /ideas/12, /roadmap/12, /admin/people. GitHub Pages serves the
 // app for any path through 404.html (see vite.config.ts). The demo is a single file, demo.html, so it
 // keeps the same paths after a # instead, whether opened as /demo.html or /demo.
@@ -13,11 +15,22 @@ export function readPath(): string[] {
   return (hashMode ? location.hash.slice(1) : location.pathname.slice(1)).split('/').filter(Boolean)
 }
 
-// Replaces the address without adding to history; the app has its own back buttons
-export function writePath(path: string) {
+// Moves to a new address as a step the browser's back button returns from, or replaces the current one
+export function writePath(path: string, replace = false) {
   const next = hashMode ? (path ? `#${path}` : location.pathname) : `/${path}`
   const now = hashMode ? location.hash || location.pathname : location.pathname
-  if (now !== next) history.replaceState(null, '', next)
+  if (now !== next) history[replace ? 'replaceState' : 'pushState'](null, '', next)
+}
+
+// Keeps a view's own part of the address (/people/<id>, /admin/tags) in step with what it shows.
+// Opening the view within its own section (straight from a link, or back) replaces the address
+// rather than adding a step; anything after that is a step.
+export function useAddress(path: string) {
+  const first = useRef(true)
+  useEffect(() => {
+    writePath(path, first.current && readPath()[0] === path.split('/')[0])
+    first.current = false
+  }, [path])
 }
 
 // A full link to a path, for sharing and copying
@@ -27,7 +40,6 @@ export function linkTo(path: string) {
 
 // Calls back when the address changes through the browser (back and forward)
 export function onPathChange(fn: () => void) {
-  const event = hashMode ? 'hashchange' : 'popstate'
-  addEventListener(event, fn)
-  return () => removeEventListener(event, fn)
+  addEventListener('popstate', fn)
+  return () => removeEventListener('popstate', fn)
 }

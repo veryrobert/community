@@ -58,10 +58,11 @@ function readAddress(): { view: View; idea: number | null; thread: string | null
   return { view, idea: view === 'forum' ? null : idNumber, thread: view === 'forum' && id ? id : null }
 }
 
-function writeAddress(view: View, idea: number | null, thread: string | null) {
+// Each move is a step the browser's back button returns from; replace is for tidying the address on load
+function writeAddress(view: View, idea: number | null, thread: string | null, replace: boolean) {
   // Admin and People keep their own page in the address (/admin/people, /people/<id>); they write that part
-  if ((view === 'admin' || view === 'people') && !idea && readPath()[1]) return
-  writePath(thread ? `forum/${thread}` : idea ? `${view}/${idea}` : view === 'ideas' ? '' : view)
+  if ((view === 'admin' || view === 'people') && !idea && readPath()[0] === view && readPath()[1]) return
+  writePath(thread ? `forum/${thread}` : idea ? `${view}/${idea}` : view === 'ideas' ? '' : view, replace)
 }
 
 const mark = (
@@ -128,7 +129,8 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
   useEffect(() => { document.title = store.community.name || 'community' }, [store.community.name])
 
   const openIdea = panel?.kind === 'idea' || panel?.kind === 'status' ? panel.id : null
-  useEffect(() => writeAddress(view, openIdea, forumThread), [view, openIdea, forumThread])
+  const loaded = useRef(false)
+  useEffect(() => { writeAddress(view, openIdea, forumThread, !loaded.current); loaded.current = true }, [view, openIdea, forumThread])
   useEffect(() => onPathChange(() => {
     const a = readAddress()
     setView(a.view)

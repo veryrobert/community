@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Facilitation, type AdminSection } from '@/sheets/Settings'
 import { loadRequests, type Store } from '@/lib/data'
-import { readPath, writePath } from '@/lib/route'
+import { onPathChange, readPath, useAddress } from '@/lib/route'
 
 const SECTIONS: { id: AdminSection; title: string; about: string }[] = [
   { id: 'community', title: 'Community', about: 'Name, vision and the About page' },
@@ -21,9 +21,8 @@ export function Admin({ store, onChanged }: { store: Store; onChanged: () => voi
   const [section, setSection] = useState<AdminSection | null>(fromAddress)
   const [waiting, setWaiting] = useState(0)
   useEffect(() => { loadRequests().then(r => setWaiting(r.length)).catch(() => {}) }, [section])
-  useEffect(() => {
-    writePath(section ? `admin/${section}` : 'admin')
-  }, [section])
+  useAddress(section ? `admin/${section}` : 'admin')
+  useEffect(() => onPathChange(() => { if (readPath()[0] === 'admin') setSection(fromAddress()) }), [])
 
   const open = SECTIONS.find(s => s.id === section)
   if (open) {
