@@ -161,11 +161,11 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
 
       </div>
 
-      {/* Post: one full-width button for the writing column, kept in view at the bottom */}
+      {/* Post, at the end of the writing column, kept in view at the bottom */}
       <div className="sticky bottom-0 bg-background/90 backdrop-blur" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-5 py-4">
-          {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
-          <Button onClick={post} disabled={busy || d.title.trim().length < 3 || (kind === 'discussion' && !d.category)} className="h-12 w-full rounded-xl text-base md:text-sm">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-end gap-4 px-5 py-3">
+          {error && <p role="alert" className="mr-auto text-xs text-destructive">{error}</p>}
+          <Button onClick={post} disabled={busy || d.title.trim().length < 3 || (kind === 'discussion' && !d.category)} className="h-9 rounded-full px-5 text-sm">
             {busy ? 'Posting' : 'Post'}
           </Button>
         </div>
