@@ -26,6 +26,7 @@ import { Updates } from '@/views/Updates'
 import { Admin } from '@/views/Admin'
 import { About } from '@/views/About'
 import { People } from '@/views/People'
+import { Compose } from '@/views/Compose'
 import { Forum } from '@/views/Forum'
 import { IdeaSheet, StatusEditor } from '@/sheets/IdeaSheet'
 import { IdeaPage } from '@/sheets/IdeaPage'
@@ -34,7 +35,7 @@ import { UPDATE_FORM, UpdateForm } from '@/sheets/UpdateForm'
 import { Settings } from '@/sheets/Settings'
 import { NewForumThread } from '@/sheets/ForumThreadForm'
 
-type View = 'ideas' | 'roadmap' | 'updates' | 'forum' | 'people' | 'about' | 'admin'
+type View = 'ideas' | 'roadmap' | 'updates' | 'forum' | 'people' | 'about' | 'admin' | 'new' | 'new-discussion'
 type Panel =
   | { kind: 'idea'; id: number; editing?: boolean }
   | { kind: 'status'; id: number }
@@ -47,7 +48,7 @@ type Panel =
 // from that view (see lib/route.ts)
 function readAddress(): { view: View; idea: number | null; thread: string | null } {
   const [v, id] = readPath()
-  const view: View = v === 'roadmap' || v === 'updates' || v === 'forum' || v === 'people' || v === 'about' || v === 'admin' ? v : 'ideas'
+  const view: View = v === 'roadmap' || v === 'updates' || v === 'forum' || v === 'people' || v === 'about' || v === 'admin' || v === 'new' || v === 'new-discussion' ? v : 'ideas'
   const idNumber = id && /^\d+$/.test(id) ? Number(id) : null
   return { view, idea: view === 'forum' ? null : idNumber, thread: view === 'forum' && id ? id : null }
 }
@@ -283,8 +284,8 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
 
   // New idea only on the ideas list; New update on Updates for facilitators; nothing elsewhere
   const action =
-    view === 'ideas' ? { label: 'New idea', onClick: () => setPanel({ kind: 'new-idea' }) }
-    : view === 'forum' ? { label: 'New discussion', onClick: () => setPanel({ kind: 'new-thread' }) }
+    view === 'ideas' ? { label: 'New idea', onClick: () => setView('new') }
+    : view === 'forum' && !forumThread ? { label: 'New discussion', onClick: () => setView('new-discussion') }
     : view === 'updates' && facilitator ? { label: 'New update', onClick: () => setPanel({ kind: 'new-update' }) }
     : null
 
@@ -320,6 +321,16 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
         </>)}
         </div>
       </main>
+
+      {/* Writing a new idea (/new) or forum discussion (/new-discussion) takes over the screen */}
+      {view === 'new' && (
+        <Compose kind="idea" store={store} onClose={() => setView('ideas')} onOpen={open}
+          onPosted={id => { load().then(() => { setView('ideas'); setPanel({ kind: 'idea', id: id as number }) }); setFlash('Idea posted') }} />
+      )}
+      {view === 'new-discussion' && (
+        <Compose kind="discussion" store={store} onClose={() => setView('forum')} onOpen={open}
+          onPosted={slug => { setForumThread(slug as string); setView('forum'); setFlash('Discussion posted') }} />
+      )}
 
       <TopBar name={name} onHome={home} places={places} admin={admin}
         me={{ name: displayName(store.me), email: store.me.email, avatar: store.me.avatar_url }} onSettings={() => setPanel({ kind: 'settings' })} onSignOut={() => signOut()}

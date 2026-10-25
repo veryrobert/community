@@ -1,7 +1,7 @@
 // In-memory stand-in for lib/data.ts, so the app can be tried without Supabase. Same exports.
 import { useCallback, useSyncExternalStore } from 'react'
 import { ABOUT, CONDUCT, GUIDELINES } from './about'
-import type { InviteRequest, Comment, Community, HideReason, Idea, IdeaRole, Invite, Notify, Person, Profile, ProfileDetails, Role, Status, Tag, Goal, Update } from '@/lib/types'
+import type { InviteRequest, Comment, Community, HideReason, Idea, IdeaRole, Invite, Notify, Person, Profile, ProfileDetails, Role, ForumCategory, ForumPost, ForumThread, Status, Tag, Goal, Update } from '@/lib/types'
 
 export type Store = { me: Profile; community: Community; goals: Goal[]; tags: Tag[]; ideas: Idea[]; updates: Update[]; members: Profile[] }
 export type IdeaInput = { title: string; body: string; goal_id: number | null }
@@ -194,3 +194,64 @@ export async function loadRequests() { return [...db.requests] }
 export async function clearRequest(id: number) { db.requests = db.requests.filter(r => r.id !== id) }
 
 export { signOut } from './auth'
+
+// Forum: a few categories and discussions, held in memory like everything else here
+const forum = {
+  categories: [
+    { id: 1, name: 'General', description: 'Anything about design in the public service', position: 1 },
+    { id: 2, name: 'Research', description: 'Methods, recruitment, consent and ethics', position: 2 },
+    { id: 3, name: 'Accessibility', description: 'Making services work for everyone', position: 3 },
+    { id: 4, name: 'Events', description: 'Meetups, talks and training', position: 4 },
+  ] as ForumCategory[],
+  threads: [
+    { id: 1, slug: 'recruiting-research-participants-who-arent-online', category_id: 2, title: 'Recruiting research participants who aren’t online', body: 'We keep hearing from the same digitally confident people. How are others reaching people who rarely use online services?', author_id: 'aoife', pinned: false, closed: false, hidden: false, created_at: ago(30), last_activity_at: ago(4) },
+    { id: 2, slug: 'welcome-introduce-yourself', category_id: 1, title: 'Welcome: introduce yourself', body: 'Say hello, where you work and what you’re working on.', author_id: 'me', pinned: true, closed: false, hidden: false, created_at: ago(200), last_activity_at: ago(20) },
+    { id: 3, slug: 'screen-reader-testing-on-a-budget', category_id: 3, title: 'Screen reader testing on a budget', body: 'Which tools and set-ups have worked for you without a big spend?', author_id: 'ciaran', pinned: false, closed: false, hidden: false, created_at: ago(60), last_activity_at: ago(50) },
+  ],
+  posts: [
+    { id: 1, thread_id: 1, parent_id: null, author_id: 'niamh', body: 'Libraries and Intreo offices have been great for us. Ask the staff to help you meet people face to face.', hidden: false, hidden_reason: null, edited_at: null, created_at: ago(10) },
+    { id: 2, thread_id: 1, parent_id: 1, author_id: 'aoife', body: 'Good shout. Did you need approval from the office manager first?', hidden: false, hidden_reason: null, edited_at: null, created_at: ago(4) },
+    { id: 3, thread_id: 2, parent_id: null, author_id: 'ciaran', body: 'Hi all, content designer at Revenue, working on PAYE guidance.', hidden: false, hidden_reason: null, edited_at: null, created_at: ago(20) },
+  ] as Omit<ForumPost, 'author_name' | 'author_avatar'>[],
+  follows: new Set<number>([2]),
+}
+const avatarOf = (id: string) => members.find(m => m.id === id)?.avatar_url ?? null
+const threadView = (t: typeof forum.threads[number]): ForumThread => {
+  const replies = forum.posts.filter(p => p.thread_id === t.id)
+  const last = replies.at(-1)
+  return { ...t, author_name: nameOf(t.author_id), author_avatar: avatarOf(t.author_id), reply_count: replies.length, last_reply_name: last ? nameOf(last.author_id) : null, following: forum.follows.has(t.id), unread: false }
+}
+const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+export async function loadForumCategories() { return [...forum.categories] }
+export async function loadForumThreads(categoryId?: number) {
+  return forum.threads.filter(t => !categoryId || t.category_id === categoryId).map(threadView)
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.last_activity_at.localeCompare(a.last_activity_at))
+}
+export async function loadForumThread(slug: string) {
+  const t = forum.threads.find(x => x.slug === slug)
+  if (!t) throw new Error('That discussion has gone.')
+  return threadView(t)
+}
+export async function loadForumPosts(threadId: number) {
+  return forum.posts.filter(p => p.thread_id === threadId).map(p => ({ ...p, author_name: nameOf(p.author_id), author_avatar: avatarOf(p.author_id) })) as ForumPost[]
+}
+export async function createForumThread(input: { category_id: number; title: string; body: string }) {
+  let slug = slugify(input.title) || 'discussion'
+  if (forum.threads.some(t => t.slug === slug)) slug += `-${forum.threads.length + 1}`
+  const now = new Date().toISOString()
+  forum.threads.push({ id: forum.threads.length + 1, slug, ...input, author_id: 'me', pinned: false, closed: false, hidden: false, created_at: now, last_activity_at: now })
+  forum.follows.add(forum.threads.length)
+  return slug
+}
+export async function addForumPost(threadId: number, body: string, parentId: number | null = null) {
+  const now = new Date().toISOString()
+  forum.posts.push({ id: forum.posts.length + 1, thread_id: threadId, parent_id: parentId, author_id: 'me', body, hidden: false, hidden_reason: null, edited_at: null, created_at: now })
+  const t = forum.threads.find(x => x.id === threadId); if (t) t.last_activity_at = now
+}
+export async function editForumPost(id: number, body: string) { const p = forum.posts.find(x => x.id === id); if (p) p.body = body }
+export async function deleteForumPost(id: number) { forum.posts = forum.posts.filter(p => p.id !== id) }
+export async function hideForumPost(id: number, reason: HideReason | null) { const p = forum.posts.find(x => x.id === id); if (p) Object.assign(p, { hidden: reason !== null, hidden_reason: reason }) }
+export async function setForumThread(id: number, changes: Partial<Pick<ForumThread, 'pinned' | 'closed' | 'hidden'>>) { const t = forum.threads.find(x => x.id === id); if (t) Object.assign(t, changes) }
+export async function followForumThread(threadId: number, following: boolean) { if (following) forum.follows.add(threadId); else forum.follows.delete(threadId) }
+export async function markForumRead() {}
+export function watchForum() { return () => {} }
