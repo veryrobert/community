@@ -203,7 +203,7 @@ function Comment({ post, tree, depth, compact, collapsed, onToggle, canReply, fa
       {/* The thread line: tap to fold this branch */}
       {replies.length > 0 && !folded && (
         <button type="button" aria-label={`Fold ${post.author_name}’s reply`} onClick={() => onToggle(post.id)}
-          className={cn('group absolute bottom-2 w-4 outline-none', compact ? 'top-8 left-0' : 'top-14 left-2.5')}>
+          className={cn('group absolute bottom-2 w-4 outline-none', compact ? 'top-8 -left-0.5' : 'top-14 left-2.5')}>
           <span className="mx-auto block h-full w-px bg-border transition-colors group-hover:bg-muted-foreground" />
         </button>
       )}
@@ -223,7 +223,8 @@ function Comment({ post, tree, depth, compact, collapsed, onToggle, canReply, fa
             )}
             {compact && !folded && facilitator && <PostMenu post={post} facilitator={facilitator} onChanged={onChanged} />}
           </p>
-          {!folded && (<>
+          {/* Compact: the text lines up with the name, clear of the thread line under the fold button */}
+          {!folded && (<div className={cn('flex flex-col gap-1.5', compact && 'pl-6')}>
             {post.hidden
               ? <p className="text-sm text-muted-foreground">Hidden as {HIDE_REASONS[post.hidden_reason ?? 'off-topic'].toLowerCase()}.</p>
               : <Markdown className={compact ? 'text-sm' : 'text-base'}>{post.body}</Markdown>}
@@ -233,7 +234,7 @@ function Comment({ post, tree, depth, compact, collapsed, onToggle, canReply, fa
                 {facilitator && <PostMenu post={post} facilitator={facilitator} onChanged={onChanged} />}
               </div>
             )}
-          </>)}
+          </div>)}
         </div>
       </article>
       {!folded && replies.length > 0 && (
