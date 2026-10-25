@@ -49,8 +49,8 @@ function readAddress(): { view: View; idea: number | null } {
 }
 
 function writeAddress(view: View, idea: number | null) {
-  // Admin keeps its section in the address (/admin/people); Admin.tsx writes that part
-  if (view === 'admin' && readPath()[1]) return
+  // Admin and People keep their own page in the address (/admin/people, /people/<id>); they write that part
+  if ((view === 'admin' || view === 'people') && !idea && readPath()[1]) return
   writePath(idea ? `${view}/${idea}` : view === 'ideas' ? '' : view)
 }
 
@@ -290,7 +290,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
         {view === 'ideas' && <Board key={homes} store={store} onOpen={open} onVote={vote} searching={searching} onHome={home} />}
         {view === 'roadmap' && <Roadmap store={store} onOpen={open} openId={openIdea} onError={setFlash} />}
         {view === 'updates' && <Updates store={store} onOpen={open} onChanged={load} />}
-        {view === 'people' && <People store={store} onEditMe={() => setPanel({ kind: 'settings' })} />}
+        {view === 'people' && <People store={store} onEditMe={() => setPanel({ kind: 'settings' })} onOpenIdea={open} />}
         {view === 'about' && <About community={store.community} signedIn />}
         {view === 'admin' && (facilitator ? <Admin store={store} onChanged={load} /> : <p className="mx-auto max-w-2xl px-5 text-sm text-muted-foreground">Only facilitators can see this.</p>)}
         </>)}
