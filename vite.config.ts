@@ -1,3 +1,4 @@
+import { copyFileSync } from 'node:fs'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
@@ -30,11 +31,21 @@ function csp(supabaseUrl: string, captcha: boolean): Plugin {
   }
 }
 
+// Clean addresses (/people, /ideas/12) on GitHub Pages, which only has files: it serves 404.html for
+// any path it doesn't know, so 404.html is the app too, and the app reads the address (lib/route.ts)
+function spaFallback(): Plugin {
+  return {
+    name: 'spa-fallback',
+    apply: 'build',
+    closeBundle() { copyFileSync('dist/index.html', 'dist/404.html') },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
   return {
-    base: './',
-    plugins: [react(), tailwindcss(), csp(env.VITE_SUPABASE_URL ?? '', Boolean(env.VITE_TURNSTILE_SITE_KEY))],
+    base: '/', // from the root, so deep addresses find the assets
+    plugins: [react(), tailwindcss(), csp(env.VITE_SUPABASE_URL ?? '', Boolean(env.VITE_TURNSTILE_SITE_KEY)), spaFallback()],
     resolve: {
       alias: { '@': path.resolve(import.meta.dirname, './src') },
     },

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowUpRight, ChevronDown, Mail } from 'lucide-react'
+import { ArrowUpRight, BadgeCheck, ChevronDown, Mail } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/shell/Avatar'
 import { cn } from '@/lib/utils'
@@ -66,7 +66,7 @@ export function People({ store, onEditMe }: { store: Store; onEditMe: () => void
       </div>
 
       {shown.length ? (
-        <ul className="pt-6">{shown.map(m => <Person key={m.id} m={m} me={m.id === store.me.id} onEditMe={onEditMe} />)}</ul>
+        <ul className="flex flex-col gap-2 pt-6">{shown.map(m => <Person key={m.id} m={m} me={m.id === store.me.id} onEditMe={onEditMe} />)}</ul>
       ) : (
         <p className="px-1 pt-8 text-sm text-muted-foreground">{listed.length ? 'Nobody matches that.' : 'Nobody is listed yet.'}</p>
       )}
@@ -77,7 +77,7 @@ export function People({ store, onEditMe }: { store: Store; onEditMe: () => void
 function Person({ m, me, onEditMe }: { m: Profile; me: boolean; onEditMe: () => void }) {
   const links = 'inline-flex items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
   return (
-    <li className="flex flex-col gap-2 border-t border-border py-4">
+    <li className="flex flex-col gap-2 py-3">
       {/* The photo centred against the name and title; bio and links below, in line with the name */}
       <div className="flex items-center gap-4">
         <Avatar name={displayName(m)} url={m.avatar_url} />
@@ -89,7 +89,7 @@ function Person({ m, me, onEditMe }: { m: Profile; me: boolean; onEditMe: () => 
               </button>
             ) : <span>{displayName(m)}</span>}
             {m.role === 'facilitator' && (
-              <span className="rounded-full border border-border px-2 py-px text-xs text-muted-foreground">Facilitator</span>
+              <BadgeCheck className="size-4 text-muted-foreground" strokeWidth={1.5} role="img" aria-label="Facilitator"><title>Facilitator</title></BadgeCheck>
             )}
           </p>
           {(m.job_title || m.organisation) && (

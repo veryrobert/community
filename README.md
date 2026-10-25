@@ -62,7 +62,7 @@ That opens the real app on sample data held in the browser. Every code is 123456
 - **Live.** Supabase Realtime reloads the board when anyone changes anything; the open idea's comments update as they're posted.
 - **Similar ideas.** While a title is typed, Fuse.js lists up to three close matches to support instead.
 - **Markdown.** Ideas, comments, notes, updates and the About page take light markdown: emphasis, links, lists, quotes, code. No images or HTML.
-- **Links.** `#ideas`, `#roadmap`, `#updates`, `#about`, `#admin`, with `/id` for an idea, e.g. `#ideas/12`.
+- **Links.** Clean addresses: `/` for ideas, `/roadmap`, `/updates`, `/people`, `/about`, `/admin` (and `/admin/people` etc.), with `/id` for an idea, e.g. `/ideas/12`. GitHub Pages serves the app for any path through `404.html`, which the build writes as a copy of `index.html`. Older `#ideas/12` links redirect. The demo, a single file, uses the same paths after a `#`.
 - **Keeping awake.** Free Supabase projects pause after a week of no activity. `keepalive.yml` calls the database every three days.
 
 ## Not in this version

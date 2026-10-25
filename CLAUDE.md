@@ -52,7 +52,7 @@ A private, invite-only ideas board for a community of practice (Nolt-style), on 
 - An idea opens as its own page (back top left, its ⋯ or check top right), not in a panel; back restores the list's scroll position.
 - The panel (`PanelSheet`) is for Settings, writing a new idea or update, and changing an idea's status. Desktop: 400px from the right. Phones: nearly full height with a grab bar; drag the bar or header down to close.
 - Bottom: one action in a frosted circle, `Plus`, only where it belongs: new idea on Ideas, new update on Updates (facilitators only), nothing on Roadmap, About, Admin or an idea.
-- Settings is personal only (photo, name, appearance, email, security). Everything about the community lives in Admin (facilitators): a list of three sections, each its own page (#admin/community, #admin/tags, #admin/people) with a way back: Community (name, vision, About page text), Goals and tags, People (requests, invites, members).
+- Settings is personal only (photo, name, appearance, email, security). Everything about the community lives in Admin (facilitators): a list of three sections, each its own page (/admin/community, /admin/tags, /admin/people) with a way back: Community (name, vision, About page text), Goals and tags, People (requests, invites, members).
 
 ### Type and controls
 - Three sizes only, set as theme tokens in `index.css` so shadcn follows: 13/16/20px on phones, 12/14/18px on desktop (`xs`, `sm`=`base`, `lg`=`xl`). Root stays 16px. Hierarchy from colour and space, not more sizes.

@@ -36,7 +36,7 @@ Deno.serve(async req => {
   const { data: idea } = await db.from('ideas').select('id, title, status, status_note, merged_into').eq('id', record.idea_id!).single()
   if (!idea) return done(record.id)
   const { data: actor } = record.actor_id ? await db.from('profiles').select('email, name').eq('id', record.actor_id).single() : { data: null }
-  const link = `${SITE}/#ideas/${idea.id}`
+  const link = `${SITE}/ideas/${idea.id}`
 
   let to: Person[] = []
   let subject = ''
@@ -54,7 +54,7 @@ Deno.serve(async req => {
     lines = [`${name(actor)} changed “${idea.title}” to ${STATUS[idea.status]}.`]
     if (idea.status === 'merged' && idea.merged_into) {
       const { data: original } = await db.from('ideas').select('id, title').eq('id', idea.merged_into).single()
-      if (original) lines.push('', `It duplicates “${original.title}”. Your support now counts there: ${SITE}/#ideas/${original.id}`)
+      if (original) lines.push('', `It duplicates “${original.title}”. Your support now counts there: ${SITE}/ideas/${original.id}`)
     }
     if (idea.status_note) lines.push('', idea.status_note)
   } else {

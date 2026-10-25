@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Facilitation, type AdminSection } from '@/sheets/Settings'
 import { loadRequests, type Store } from '@/lib/data'
+import { readPath, writePath } from '@/lib/route'
 
 const SECTIONS: { id: AdminSection; title: string; about: string }[] = [
   { id: 'community', title: 'Community', about: 'Name, vision and the About page' },
@@ -9,20 +10,19 @@ const SECTIONS: { id: AdminSection; title: string; about: string }[] = [
   { id: 'people', title: 'People', about: 'Requests to join, invites and members' },
 ]
 
-const fromHash = (): AdminSection | null => {
-  const s = location.hash.split('/')[1]
+const fromAddress = (): AdminSection | null => {
+  const s = readPath()[1]
   return SECTIONS.some(x => x.id === s) ? (s as AdminSection) : null
 }
 
 // Facilitators' own area, separate from anyone's personal Settings. A short list of sections,
-// each opening as its own page (#admin/people) with a way back.
+// each opening as its own page (/admin/people) with a way back.
 export function Admin({ store, onChanged }: { store: Store; onChanged: () => void }) {
-  const [section, setSection] = useState<AdminSection | null>(fromHash)
+  const [section, setSection] = useState<AdminSection | null>(fromAddress)
   const [waiting, setWaiting] = useState(0)
   useEffect(() => { loadRequests().then(r => setWaiting(r.length)).catch(() => {}) }, [section])
   useEffect(() => {
-    const next = section ? `#admin/${section}` : '#admin'
-    if (location.hash !== next) history.replaceState(null, '', next)
+    writePath(section ? `admin/${section}` : 'admin')
   }, [section])
 
   const open = SECTIONS.find(s => s.id === section)

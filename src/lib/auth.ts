@@ -5,7 +5,8 @@ import { supabase } from './supabase'
 // Sign-in and optional two-factor. The emailed code (or GitHub) is enough to sign in. Anyone who has
 // added an authenticator must also pass its code (aal2); the database enforces that (two_factor_ok).
 
-const here = () => location.origin + location.pathname
+// Sign-in always returns to the site's root, the one address on Supabase's redirect list
+const here = () => `${location.origin}/`
 
 export async function signInWithGitHub() {
   const { error } = await supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: here() } })

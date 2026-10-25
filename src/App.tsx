@@ -13,6 +13,7 @@ import { PanelSheet } from '@/components/shell/PanelSheet'
 import { ActionDock } from '@/components/shell/ActionDock'
 import { PANEL_W, SAFE_BOTTOM, usePhone } from '@/components/shell/layout'
 import { configured } from '@/lib/supabase'
+import { linkTo, onPathChange, readPath, writePath } from '@/lib/route'
 import { cn } from '@/lib/utils'
 import { deleteIdea, saveName, signOut, useSession, useStore, type Store } from '@/lib/data'
 import { useGate, useSessionLimits } from '@/lib/auth'
@@ -39,18 +40,18 @@ type Panel =
   | { kind: 'new-update' }
   | { kind: 'settings' }
 
-// The address is #view or #view/ideaId, so an idea can be linked to
-function readHash(): { view: View; idea: number | null } {
-  const [v, id] = location.hash.slice(1).split('/')
+// The address is / for the ideas list, /view for the others, and /view/ideaId for an idea opened
+// from that view (see lib/route.ts)
+function readAddress(): { view: View; idea: number | null } {
+  const [v, id] = readPath()
   const view: View = v === 'roadmap' || v === 'updates' || v === 'people' || v === 'about' || v === 'admin' ? v : 'ideas'
   return { view, idea: id && /^\d+$/.test(id) ? Number(id) : null }
 }
 
-function writeHash(view: View, idea: number | null) {
-  // Admin keeps its section in the address (#admin/people); Admin.tsx writes that part
-  if (view === 'admin' && location.hash.startsWith('#admin/')) return
-  const next = `#${view}${idea ? `/${idea}` : ''}`
-  if (location.hash !== next) history.replaceState(null, '', next)
+function writeAddress(view: View, idea: number | null) {
+  // Admin keeps its section in the address (/admin/people); Admin.tsx writes that part
+  if (view === 'admin' && readPath()[1]) return
+  writePath(idea ? `${view}/${idea}` : view === 'ideas' ? '' : view)
 }
 
 const mark = (
@@ -105,7 +106,7 @@ function Signed({ userId }: { userId: string }) {
 
 function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; vote: (i: Idea) => void }) {
   const phone = usePhone()
-  const initial = readHash()
+  const initial = readAddress()
   const [view, setView] = useState<View>(initial.view)
   const [panel, setPanel] = useState<Panel | null>(initial.idea ? { kind: 'idea', id: initial.idea } : null)
   const [flash, setFlash] = useState<string | null>(null)
@@ -116,16 +117,12 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
   useEffect(() => { document.title = store.community.name || 'community' }, [store.community.name])
 
   const openIdea = panel?.kind === 'idea' || panel?.kind === 'status' ? panel.id : null
-  useEffect(() => writeHash(view, openIdea), [view, openIdea])
-  useEffect(() => {
-    const on = () => {
-      const h = readHash()
-      setView(h.view)
-      setPanel(h.idea ? { kind: 'idea', id: h.idea } : null)
-    }
-    addEventListener('hashchange', on)
-    return () => removeEventListener('hashchange', on)
-  }, [])
+  useEffect(() => writeAddress(view, openIdea), [view, openIdea])
+  useEffect(() => onPathChange(() => {
+    const a = readAddress()
+    setView(a.view)
+    setPanel(a.idea ? { kind: 'idea', id: a.idea } : null)
+  }), [])
 
   useEffect(() => {
     if (!flash) return
@@ -163,7 +160,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
   async function share() {
     if (!idea) return
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-      try { await navigator.share({ title: idea.title, url: `${location.origin}${location.pathname}#ideas/${idea.id}` }) } catch { /* dismissed */ }
+      try { await navigator.share({ title: idea.title, url: linkTo(`ideas/${idea.id}`) }) } catch { /* dismissed */ }
       return
     }
     copyLink()
@@ -172,7 +169,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
   async function copyLink() {
     if (!idea) return
     try {
-      await navigator.clipboard.writeText(`${location.origin}${location.pathname}#${view}/${idea.id}`)
+      await navigator.clipboard.writeText(linkTo(`ideas/${idea.id}`))
       setFlash('Link copied')
     } catch {
       setFlash('Couldn’t copy the link')
