@@ -46,9 +46,13 @@ type Panel =
 
 // The address is / for the ideas list, /view for the others, and /view/ideaId for an idea opened
 // from that view (see lib/route.ts)
+// The forum is only in the demo until its tables are in the database (VITE_FORUM=on turns it on)
+const FORUM = import.meta.env.VITE_FORUM === 'on'
+
 function readAddress(): { view: View; idea: number | null; thread: string | null } {
   const [v, id] = readPath()
-  const view: View = v === 'roadmap' || v === 'updates' || v === 'forum' || v === 'people' || v === 'about' || v === 'admin' || v === 'new' || v === 'new-discussion' ? v : 'ideas'
+  const forumView = v === 'forum' || v === 'new-discussion'
+  const view: View = (forumView && FORUM) || v === 'roadmap' || v === 'updates' || v === 'people' || v === 'about' || v === 'admin' || v === 'new' ? v : 'ideas'
   const idNumber = id && /^\d+$/.test(id) ? Number(id) : null
   return { view, idea: view === 'forum' ? null : idNumber, thread: view === 'forum' && id ? id : null }
 }
@@ -254,7 +258,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
     { id: 'forum', label: 'Forum', icon: MessageCircle },
     { id: 'people', label: 'People', icon: Users },
     { id: 'about', label: 'About', icon: Info },
-  ] as const).map(p => ({ ...p, active: view === p.id && panel?.kind !== 'idea', onClick: () => go(p.id) }))
+  ] as const).filter(p => FORUM || p.id !== 'forum').map(p => ({ ...p, active: view === p.id && panel?.kind !== 'idea', onClick: () => go(p.id) }))
   // Facilitators reach Admin from its own button in the top bar, not the menu
   const admin = facilitator
     ? { id: 'admin', label: 'Admin', icon: Shield, active: view === 'admin' && panel?.kind !== 'idea', onClick: () => go('admin') }

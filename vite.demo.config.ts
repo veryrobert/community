@@ -7,6 +7,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 const src = path.resolve(import.meta.dirname, './src')
 export default defineConfig({
   plugins: [react(), tailwindcss(), viteSingleFile()],
+  define: { 'import.meta.env.VITE_FORUM': JSON.stringify('on') }, // the forum shows in the demo before it's live
   build: { outDir: 'dist-demo', assetsInlineLimit: 100_000_000, rollupOptions: { input: 'demo.html' } },
   resolve: {
     alias: [
