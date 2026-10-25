@@ -17,8 +17,8 @@ const LABEL: Record<ComposeKind, { name: string; titleMax: number; placeholder: 
 }
 
 // The draft is kept on this device until it's posted or discarded, so leaving loses nothing
-type Draft = { title: string; body: string; tags: number[]; goal: string; category: number | null }
-const empty: Draft = { title: '', body: '', tags: [], goal: '', category: null }
+type Draft = { title: string; body: string; tags: number[]; category: number | null }
+const empty: Draft = { title: '', body: '', tags: [], category: null }
 const draftKey = (kind: ComposeKind) => `community:draft-${kind}`
 function readDraft(kind: ComposeKind): Draft {
   try { return { ...empty, ...JSON.parse(localStorage.getItem(draftKey(kind)) ?? '{}') } } catch { return empty }
@@ -69,7 +69,7 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
     setError(null)
     try {
       const where = kind === 'idea'
-        ? await createIdea({ title: d.title.trim(), body: d.body.trim(), goal_id: d.goal ? Number(d.goal) : null }, d.tags)
+        ? await createIdea({ title: d.title.trim(), body: d.body.trim(), goal_id: null }, d.tags)
         : await createForumThread({ category_id: d.category!, title: d.title.trim(), body: d.body.trim() })
       keepDraft(kind, null)
       onPosted(where)
@@ -126,7 +126,7 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
           </div>
         )}
 
-        {kind === 'idea' && (store.tags.length > 0 || store.goals.length > 0) && (
+        {kind === 'idea' && store.tags.length > 0 && (
           <div className="flex flex-col gap-4">
             {store.tags.length > 0 && (
               <div className="flex flex-col gap-2">
@@ -139,16 +139,6 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
                         onClick={() => set({ tags: on ? d.tags.filter(x => x !== t.id) : [...d.tags, t.id] })}>{t.name}</Chip>
                     )
                   })}
-                </div>
-              </div>
-            )}
-            {store.goals.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-muted-foreground">Goal</p>
-                <div role="radiogroup" aria-label="Goal" className="flex flex-wrap gap-2">
-                  {store.goals.map(g => (
-                    <Chip key={g.id} role="radio" on={d.goal === String(g.id)} onClick={() => set({ goal: d.goal === String(g.id) ? '' : String(g.id) })}>{g.title}</Chip>
-                  ))}
                 </div>
               </div>
             )}

@@ -2,7 +2,6 @@ import { useRef, useState, type ReactNode } from 'react'
 import { Bold, Italic, Link, List, ListOrdered, Quote } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Markdown } from './Markdown'
-import { Segmented } from './Segmented'
 import { ToolButton } from './ToolButton'
 
 type Action = { label: string; icon: typeof Bold; keys?: string; apply: (sel: string) => { text: string; select?: [number, number] } }
@@ -19,7 +18,7 @@ const ACTIONS: Action[] = [
 const lines = (s: string, f: (l: string, i: number) => string) => s.split('\n').map(f).join('\n')
 
 // A writing space for markdown: a toolbar that formats the selection (or inserts a placeholder),
-// ⌘B / ⌘I / ⌘K, and Write / Preview. The textarea grows with the text, and is never less than
+// ⌘B / ⌘I / ⌘K, and a Preview button that flips to Edit. The textarea grows with the text, and is never less than
 // half the screen, so the whole writing area takes a click.
 export function MarkdownEditor({ value, onChange, placeholder, label, minRows = 14, toolbarClassName, children }: {
   value: string
@@ -49,7 +48,7 @@ export function MarkdownEditor({ value, onChange, placeholder, label, minRows = 
   return (
     <div className="flex flex-col">
       <div className={cn('flex items-center justify-between gap-2 border-b border-border bg-background py-2', toolbarClassName)}>
-        <div role="toolbar" aria-label="Formatting" className="-ml-1.5 flex items-center gap-1">
+        <div role="toolbar" aria-label="Formatting" className="-ml-1.5 flex min-w-0 items-center gap-0.5 sm:gap-1">
           {ACTIONS.map(a => (
             <ToolButton key={a.label} icon={a.icon} label={a.keys ? `${a.label} (⌘${a.keys.toUpperCase()})` : a.label} side="top"
               disabled={mode === 'preview'} onMouseDown={e => e.preventDefault()} onClick={() => run(a)} className="size-8 disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4" />
@@ -57,10 +56,10 @@ export function MarkdownEditor({ value, onChange, placeholder, label, minRows = 
         </div>
         <div className="flex items-center gap-2">
           {children}
-          <div className="w-40">
-            <Segmented<'write' | 'preview'> label="Write or preview" size="sm" value={mode} onChange={setMode}
-              options={[{ value: 'write', label: 'Write' }, { value: 'preview', label: 'Preview' }]} />
-          </div>
+          <button type="button" aria-pressed={mode === 'preview'} onClick={() => setMode(mode === 'write' ? 'preview' : 'write')}
+            className="h-8 rounded-full px-3 text-xs text-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary aria-pressed:text-primary-foreground">
+            {mode === 'write' ? 'Preview' : 'Edit'}
+          </button>
         </div>
       </div>
       {mode === 'write' ? (
