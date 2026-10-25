@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Fuse from 'fuse.js'
 import { ChevronDown, SquarePen, X } from 'lucide-react'
 import {
@@ -9,12 +10,14 @@ import { MarkdownEditor } from '@/components/shell/MarkdownEditor'
 import { ToolButton } from '@/components/shell/ToolButton'
 import { MAX_TAGS_PER_IDEA } from '@/components/shell/Tags'
 import { useDialogs } from '@/components/shell/Dialogs'
-import { createForumThread, createIdea, loadForumCategories, type Store } from '@/lib/data'
-import type { ForumCategory } from '@/lib/types'
+import { addForumPost, createForumThread, createIdea, loadForumCategories, type Store } from '@/lib/data'
+import type { ForumCategory, ForumPost } from '@/lib/types'
+import { plain } from '@/components/shell/Markdown'
 import { cn } from '@/lib/utils'
 
-export type ComposeKind = 'idea' | 'discussion'
+export type ComposeKind = 'idea' | 'discussion' | 'reply'
 const LABEL: Record<ComposeKind, { name: string; titleMax: number; placeholder: string }> = {
+  reply: { name: 'Reply', titleMax: 0, placeholder: 'Write your reply' },
   idea: { name: 'New idea', titleMax: 140, placeholder: 'What would change, and who would it help? Add any background, examples or links.' },
   discussion: { name: 'New discussion', titleMax: 180, placeholder: 'What would you like to talk about? Share the context, what you’ve tried, and what you’d like to hear from others.' },
 }
@@ -22,23 +25,32 @@ const LABEL: Record<ComposeKind, { name: string; titleMax: number; placeholder: 
 // The draft is kept on this device until it's posted or discarded, so leaving loses nothing
 type Draft = { title: string; body: string; tags: number[]; category: number | null }
 const empty: Draft = { title: '', body: '', tags: [], category: null }
-const draftKey = (kind: ComposeKind) => `community:draft-${kind}`
-function readDraft(kind: ComposeKind): Draft {
-  try { return { ...empty, ...JSON.parse(localStorage.getItem(draftKey(kind)) ?? '{}') } } catch { return empty }
+// One draft each for a new idea and a new discussion, and one per discussion for replies
+function readDraft(key: string): Draft | null {
+  try { const v = localStorage.getItem(key); return v ? { ...empty, ...JSON.parse(v) } : null } catch { return null }
 }
-function keepDraft(kind: ComposeKind, d: Draft | null) {
-  try { if (d) localStorage.setItem(draftKey(kind), JSON.stringify(d)); else localStorage.removeItem(draftKey(kind)) } catch { /* private mode */ }
+function keepDraft(key: string, d: Draft | null) {
+  try { if (d) localStorage.setItem(key, JSON.stringify(d)); else localStorage.removeItem(key) } catch { /* private mode */ }
 }
 
-// Writing a new idea or forum discussion, as a page that takes over the screen
-export function Compose({ kind, store, onClose, onPosted, onOpen }: {
+// What a reply answers: the discussion, and the post being replied to (quoted to start with), if any
+export type ReplyTo = { threadId: number; threadTitle: string; parent: ForumPost | null }
+
+// Writing a new idea, forum discussion or reply, as a page that takes over the screen
+export function Compose({ kind, store, reply, onClose, onPosted, onOpen }: {
   kind: ComposeKind
   store: Store
+  reply?: ReplyTo // for kind 'reply'
   onClose: () => void
-  onPosted: (where: number | string) => void // the new idea's id, or the discussion's slug
+  onPosted: (where: number | string) => void // the new idea's id, the discussion's slug, or the reply's discussion id
   onOpen: (id: number) => void
 }) {
-  const [d, setD] = useState<Draft>(() => readDraft(kind))
+  const key = kind === 'reply' ? `community:draft-reply-${reply?.threadId}` : `community:draft-${kind}`
+  const [d, setD] = useState<Draft>(() => {
+    const saved = readDraft(key)
+    const quote = reply?.parent ? `> **${reply.parent.author_name}:** ${plain(reply.parent.body).slice(0, 400)}\n\n` : ''
+    return saved ? { ...saved, body: quote && !saved.body.includes(quote.trim()) ? quote + saved.body : saved.body } : { ...empty, body: quote }
+  })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [categories, setCategories] = useState<ForumCategory[]>([])
@@ -48,7 +60,7 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
   const { confirm } = useDialogs()
   const set = (patch: Partial<Draft>) => setD(prev => ({ ...prev, ...patch }))
   const started = !!(d.title.trim() || d.body.trim())
-  useEffect(() => { keepDraft(kind, started ? d : null) }, [kind, d, started])
+  useEffect(() => { keepDraft(key, started ? d : null) }, [key, d, started])
 
   // Similar ideas as the title is typed, so people support what's there instead of posting it again
   const fuse = useMemo(() => new Fuse(store.ideas.filter(i => i.status !== 'merged' && i.status !== 'declined'), {
@@ -57,22 +69,24 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
   const similar = kind === 'idea' && d.title.trim().length >= 4 ? fuse.search(d.title.trim(), { limit: 3 }).map(r => r.item) : []
 
   async function cancel() {
-    if (started && !(await confirm({ title: kind === 'idea' ? 'Discard this idea?' : 'Discard this discussion?', body: 'What you’ve written here is deleted.', action: 'Discard', destructive: true }))) return
-    keepDraft(kind, null)
+    if (started && !(await confirm({ title: kind === 'idea' ? 'Discard this idea?' : kind === 'reply' ? 'Discard this reply?' : 'Discard this discussion?', body: 'What you’ve written here is deleted.', action: 'Discard', destructive: true }))) return
+    keepDraft(key, null)
     onClose()
   }
 
   async function post() {
     if (busy) return
-    if (d.title.trim().length < 3) { setError('Give it a title.'); return }
+    if (kind === 'reply' ? !d.body.trim() : d.title.trim().length < 3) { setError(kind === 'reply' ? 'Write a reply first.' : 'Give it a title.'); return }
     if (kind === 'discussion' && !d.category) { setError('Choose a category.'); return }
     setBusy(true)
     setError(null)
     try {
       const where = kind === 'idea'
         ? await createIdea({ title: d.title.trim(), body: d.body.trim(), goal_id: null }, d.tags)
-        : await createForumThread({ category_id: d.category!, title: d.title.trim(), body: d.body.trim() })
-      keepDraft(kind, null)
+        : kind === 'reply'
+          ? (await addForumPost(reply!.threadId, d.body.trim(), reply!.parent?.id ?? null), reply!.threadId)
+          : await createForumThread({ category_id: d.category!, title: d.title.trim(), body: d.body.trim() })
+      keepDraft(key, null)
       onPosted(where)
     } catch (err) {
       setError((err as Error).message)
@@ -94,19 +108,22 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
 
   // Rows from top to bottom, each on a hairline, as in Discourse's composer: what this is and close;
   // where it goes; the title; the text, filling the space; formatting; Discard and Post
-  return (
+  // Drawn on the body, above the top bar and everything else, wherever it's opened from
+  return createPortal(
     <div className="page-in fixed inset-0 z-50 flex flex-col bg-background" role="dialog" aria-modal="true" aria-label={LABEL[kind].name}
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col sm:border-x sm:border-border">
         <header className={cn(row, 'h-14 justify-between pr-3')}>
-          <h1 className="inline-flex items-center gap-2 text-sm text-foreground">
-            <SquarePen className="size-4" strokeWidth={1.5} aria-hidden />{LABEL[kind].name}
+          <h1 className="inline-flex min-w-0 items-center gap-2 text-sm text-foreground">
+            <SquarePen className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+            <span className="shrink-0">{LABEL[kind].name}</span>
+            {kind === 'reply' && reply && <span className="truncate text-muted-foreground">{reply.threadTitle}</span>}
           </h1>
           <ToolButton icon={X} label="Close" side="bottom" onClick={cancel} className="size-9 [&_svg]:size-4" />
         </header>
 
         {/* Where it goes: one category for a discussion, up to three areas for an idea */}
-        {(kind === 'discussion' ? categories.length > 0 : store.tags.length > 0) && (
+        {kind !== 'reply' && (kind === 'discussion' ? categories.length > 0 : store.tags.length > 0) && (
           <DropdownMenu>
             <DropdownMenuTrigger className={cn(row, 'h-14 justify-between text-left text-base outline-none hover:bg-card focus-visible:bg-card md:text-sm data-[state=open]:bg-card')}>
               <span className={cn('truncate', chosen ? 'text-foreground' : 'text-muted-foreground')}>
@@ -142,10 +159,10 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
           </DropdownMenu>
         )}
 
-        <input value={d.title} onChange={e => set({ title: e.target.value })} maxLength={LABEL[kind].titleMax} autoFocus
+        {kind !== 'reply' && <input value={d.title} onChange={e => set({ title: e.target.value })} maxLength={LABEL[kind].titleMax} autoFocus
           placeholder="Title" aria-label="Title" enterKeyHint="next"
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); document.querySelector<HTMLTextAreaElement>('[aria-label="Details"]')?.focus() } }}
-          className={cn(row, 'h-14 bg-transparent text-lg text-foreground outline-none placeholder:text-muted-foreground')} />
+          className={cn(row, 'h-14 bg-transparent text-lg text-foreground outline-none placeholder:text-muted-foreground')} />}
 
         {similar.length > 0 && (
           <div className="flex flex-col border-b border-border px-5 py-2">
@@ -160,18 +177,19 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
           </div>
         )}
 
-        <MarkdownEditor label="Details" value={d.body} onChange={body => set({ body: body.slice(0, 12000) })} placeholder={LABEL[kind].placeholder} />
+        <MarkdownEditor label="Details" value={d.body} onChange={body => set({ body: body.slice(0, 12000) })} placeholder={LABEL[kind].placeholder} autoFocus={kind === 'reply'} />
 
         <footer className="flex items-center justify-end gap-2 border-t border-border px-3 py-2.5">
           {error && <p role="alert" className="mr-auto pl-2 text-xs text-destructive">{error}</p>}
           {!error && started && <p className="mr-auto pl-2 text-xs text-muted-foreground">Draft kept on this device</p>}
           <Button variant="ghost" onClick={cancel} className="h-9 rounded-full px-4 text-sm">Discard</Button>
-          <Button onClick={post} disabled={busy || d.title.trim().length < 3 || (kind === 'discussion' && !d.category)} className="h-9 rounded-full px-5 text-sm">
+          <Button onClick={post} disabled={busy || (kind === 'reply' ? !d.body.trim() : d.title.trim().length < 3) || (kind === 'discussion' && !d.category)} className="h-9 rounded-full px-5 text-sm">
             {busy ? 'Posting' : 'Post'}
           </Button>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

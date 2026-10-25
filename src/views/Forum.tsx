@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, BellOff, ChevronLeft, Ellipsis, Lock, Pin, Reply, X } from 'lucide-react'
+import { Bell, BellOff, ChevronLeft, CornerDownRight, Ellipsis, Lock, Pin, Reply } from 'lucide-react'
 import { Avatar } from '@/components/shell/Avatar'
 import { Markdown, plain } from '@/components/shell/Markdown'
-import { SendField } from '@/components/shell/SendField'
+import { Button } from '@/components/ui/button'
+import { Compose } from './Compose'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { addForumPost, followForumThread, hideForumPost, loadForumCategories, loadForumPosts, loadForumThread, loadForumThreads, markForumRead, setForumThread, watchForum } from '@/lib/data'
+import { followForumThread, hideForumPost, loadForumCategories, loadForumPosts, loadForumThread, loadForumThreads, markForumRead, setForumThread, watchForum } from '@/lib/data'
 import { cn } from '@/lib/utils'
-import { HIDE_REASONS, type ForumCategory, type ForumPost, type ForumThread } from '@/lib/types'
+import { HIDE_REASONS, when, type ForumCategory, type ForumPost, type ForumThread } from '@/lib/types'
 import type { Store } from '@/lib/data'
 
 const ALL = 0
@@ -56,39 +57,116 @@ function CategoryButton({ active, onClick, children }: { active: boolean; onClic
   return <button type="button" onClick={onClick} aria-pressed={active} className="shrink-0 rounded-md px-2 py-1.5 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-accent aria-pressed:text-foreground">{children}</button>
 }
 
+// A discussion, as in Discourse: the title and where it sits, then one stream of posts oldest first,
+// the opening post and replies alike. Replying opens the full-screen editor, quoting the post replied to.
 function Thread({ store, slug, onBack }: { store: Store; slug: string; onBack: () => void }) {
   const [thread, setThread] = useState<ForumThread | null>(null)
   const [posts, setPosts] = useState<ForumPost[]>([])
-  const [replyingTo, setReplyingTo] = useState<ForumPost | null>(null)
+  const [categories, setCategories] = useState<ForumCategory[]>([])
+  const [replying, setReplying] = useState<{ parent: ForumPost | null } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const facilitator = store.me.role === 'facilitator'
-  const load = useCallback(async () => { try { const t = await loadForumThread(slug); const ps = await loadForumPosts(t.id); setThread(t); setPosts(ps); setError(null); markForumRead(t.id).catch(() => {}) } catch (e) { setError((e as Error).message) } }, [slug])
+  const load = useCallback(async () => {
+    try {
+      const t = await loadForumThread(slug)
+      const [ps, cs] = await Promise.all([loadForumPosts(t.id), loadForumCategories()])
+      setThread(t); setPosts(ps); setCategories(cs); setError(null)
+      markForumRead(t.id).catch(() => {})
+    } catch (e) { setError((e as Error).message) }
+  }, [slug])
   useEffect(() => { load(); return watchForum(thread?.id ?? null, load) }, [thread?.id, load])
-  const children = useMemo(() => { const m = new Map<number | null, ForumPost[]>(); posts.forEach(p => { const list = m.get(p.parent_id) ?? []; list.push(p); m.set(p.parent_id, list) }); return m }, [posts])
-  async function reply(body: string) { await addForumPost(thread?.id ?? 0, body, replyingTo?.id ?? null); setReplyingTo(null) }
-  if (error) return <div className="mx-auto max-w-2xl px-5"><button onClick={onBack} className="text-sm text-muted-foreground">Back to forum</button><p className="pt-8 text-sm text-destructive">{error}</p></div>
+  const byId = useMemo(() => new Map(posts.map(p => [p.id, p])), [posts])
+
+  const back = (
+    <button type="button" onClick={onBack} className="-ml-1 inline-flex items-center gap-1 self-start rounded-md px-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+      <ChevronLeft className="size-4" strokeWidth={1.5} aria-hidden />Forum
+    </button>
+  )
+  if (error) return <div className="mx-auto flex max-w-3xl flex-col px-5">{back}<p className="pt-8 text-sm text-destructive">{error}</p></div>
   if (!thread) return null
-  return <div className="mx-auto w-full max-w-2xl px-5">
-    <button type="button" onClick={onBack} className="-ml-1 inline-flex items-center gap-1 rounded-md px-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><ChevronLeft className="size-4" strokeWidth={1.5} />Forum</button>
-    <article className="pt-8">
-      <div className="flex items-start justify-between gap-4"><h1 className="text-xl text-foreground">{thread.title}</h1><ThreadMenu thread={thread} facilitator={facilitator} onChanged={load} /></div>
-      <div className="mt-5 flex gap-4"><Avatar name={thread.author_name} url={thread.author_avatar} /><div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground">{thread.author_name}</p>{thread.body && <Markdown className="mt-3 text-base">{thread.body}</Markdown>}</div></div>
-    </article>
-    <section className="mt-10 border-t border-border pt-2">
-      {children.get(null)?.map(post => <PostBranch key={post.id} post={post} children={children} me={store.me.id} facilitator={facilitator} onReply={setReplyingTo} onChanged={load} depth={0} />)}
-    </section>
-    {!thread.closed && !thread.hidden && <div className="mt-6 border-t border-border pt-5"><div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{replyingTo ? `Replying to ${replyingTo.author_name}` : 'Add a reply'}</span>{replyingTo && <button onClick={() => setReplyingTo(null)} className="inline-flex items-center gap-1 rounded outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><X className="size-3.5" />Cancel</button>}</div><SendField key={replyingTo?.id ?? 0} initialValue={replyingTo ? `> ${plain(replyingTo.body)}\n\n` : ''} label="Reply" placeholder="Write a reply" multiline onSend={reply} /></div>}
-    {thread.closed && <p className="mt-6 text-xs text-muted-foreground">This discussion is closed to new replies.</p>}
-  </div>
+  const open = !thread.closed && !thread.hidden
+  const category = categories.find(c => c.id === thread.category_id)
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col px-5">
+      {back}
+      <header className="flex items-start justify-between gap-4 border-b border-border pt-6 pb-5">
+        <div className="flex min-w-0 flex-col gap-2">
+          <h1 className="text-xl leading-snug text-foreground">{thread.title}</h1>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            {category && <span className="rounded-full border border-border px-2 py-px text-foreground">{category.name}</span>}
+            <span>{thread.reply_count} {thread.reply_count === 1 ? 'reply' : 'replies'}</span>
+            <span aria-hidden>·</span>
+            <span>Started {when(thread.created_at)}</span>
+            {thread.pinned && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1"><Pin className="size-3" strokeWidth={1.5} aria-hidden />Pinned</span></>}
+            {thread.closed && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1"><Lock className="size-3" strokeWidth={1.5} aria-hidden />Closed</span></>}
+          </p>
+        </div>
+        <ThreadMenu thread={thread} facilitator={facilitator} onChanged={load} />
+      </header>
+
+      <ol className="flex flex-col">
+        <Post id="post-0" author={thread.author_name} avatar={thread.author_avatar} at={thread.created_at} body={thread.body}
+          onReply={open ? () => setReplying({ parent: null }) : undefined} />
+        {posts.map(post => (
+          <Post key={post.id} id={`post-${post.id}`} author={post.author_name} avatar={post.author_avatar} at={post.created_at}
+            body={post.hidden ? null : post.body} hiddenReason={post.hidden ? HIDE_REASONS[post.hidden_reason ?? 'off-topic'] : undefined}
+            replyTo={post.parent_id ? byId.get(post.parent_id) : undefined}
+            onReply={open && !post.hidden ? () => setReplying({ parent: post }) : undefined}
+            menu={facilitator ? <PostMenu post={post} facilitator={facilitator} onChanged={load} /> : undefined} />
+        ))}
+      </ol>
+
+      <div className="flex items-center justify-between gap-4 border-t border-border py-5">
+        {open ? (<>
+          <p className="text-xs text-muted-foreground">{thread.following ? 'You’re following this discussion' : 'Join the discussion'}</p>
+          <Button onClick={() => setReplying({ parent: null })} className="h-9 gap-2 rounded-full px-5 text-sm">
+            <Reply className="size-4" strokeWidth={1.5} aria-hidden />Reply
+          </Button>
+        </>) : <p className="text-xs text-muted-foreground">This discussion is closed to new replies.</p>}
+      </div>
+
+      {replying && (
+        <Compose kind="reply" store={store} reply={{ threadId: thread.id, threadTitle: thread.title, parent: replying.parent }}
+          onClose={() => setReplying(null)} onOpen={() => {}}
+          onPosted={() => { setReplying(null); load().then(() => requestAnimationFrame(() => document.querySelector('main')?.scrollTo({ top: 1e6, behavior: 'smooth' }))) }} />
+      )}
+    </div>
+  )
 }
 
-function PostBranch({ post, children, me, facilitator, onReply, onChanged, depth }: { post: ForumPost; children: Map<number | null, ForumPost[]>; me: string; facilitator: boolean; onReply: (post: ForumPost) => void; onChanged: () => void; depth: number }) {
-  const nested = children.get(post.id) ?? []
-  const mine = post.author_id === me
-  return <div className={cn('relative', depth > 0 && 'ml-4 border-l border-border pl-4 sm:ml-7')}>
-    <article className="group flex gap-4 py-5"><Avatar name={post.author_name} url={post.author_avatar} /><div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground">{post.author_name}</p>{post.hidden ? <p className="mt-2 text-sm text-muted-foreground">Hidden as {HIDE_REASONS[post.hidden_reason ?? 'off-topic'].toLowerCase()}.</p> : <Markdown className="mt-2 text-base">{post.body}</Markdown>}<div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground"><button onClick={() => onReply(post)} className="inline-flex items-center gap-1 rounded outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><Reply className="size-3.5" strokeWidth={1.5} />Reply</button>{(facilitator || mine) && <PostMenu post={post} facilitator={facilitator} onChanged={onChanged} />}</div></div></article>
-    {nested.map(child => <PostBranch key={child.id} post={child} children={children} me={me} facilitator={facilitator} onReply={onReply} onChanged={onChanged} depth={depth + 1} />)}
-  </div>
+// One post in the stream: photo, name and when, then the text, then Reply
+function Post({ id, author, avatar, at, body, hiddenReason, replyTo, onReply, menu }: {
+  id: string; author: string; avatar: string | null; at: string; body: string | null; hiddenReason?: string
+  replyTo?: ForumPost; onReply?: () => void; menu?: React.ReactNode
+}) {
+  const action = 'inline-flex items-center gap-1.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
+  return (
+    <li id={id} className="flex scroll-mt-24 gap-4 border-b border-border py-6 last:border-b-0">
+      <Avatar name={author} url={avatar} className="shrink-0" />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span className="text-foreground">{author}</span>
+          <span className="text-xs text-muted-foreground">{when(at)}</span>
+          {replyTo && (
+            <button type="button" onClick={() => document.getElementById(`post-${replyTo.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className={cn(action, 'text-xs text-muted-foreground')}>
+              <CornerDownRight className="size-3" strokeWidth={1.5} aria-hidden />Replying to {replyTo.author_name}
+            </button>
+          )}
+        </p>
+        {body === null
+          ? <p className="text-sm text-muted-foreground">Hidden as {hiddenReason?.toLowerCase()}.</p>
+          : body ? <Markdown className="text-base">{body}</Markdown> : null}
+        {(onReply || menu) && (
+          <div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground">
+            {onReply && <button type="button" onClick={onReply} className={action}><Reply className="size-3.5" strokeWidth={1.5} aria-hidden />Reply</button>}
+            {menu}
+          </div>
+        )}
+      </div>
+    </li>
+  )
 }
 
 function ThreadMenu({ thread, facilitator, onChanged }: { thread: ForumThread; facilitator: boolean; onChanged: () => void }) {

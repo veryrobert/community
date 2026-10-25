@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Bold, Italic, Link, List, ListOrdered, Quote } from 'lucide-react'
 import { Markdown } from './Markdown'
 import { ToolButton } from './ToolButton'
@@ -19,14 +19,21 @@ const lines = (s: string, f: (l: string, i: number) => string) => s.split('\n').
 // A writing space for markdown that fills the space it's given, with its toolbar along the bottom
 // (beside the keyboard on phones), as in Discourse's composer. The toolbar formats the selection or
 // inserts a placeholder; ⌘B / ⌘I / ⌘K do the same; Preview flips to Edit.
-export function MarkdownEditor({ value, onChange, placeholder, label }: {
+export function MarkdownEditor({ value, onChange, placeholder, label, autoFocus = false }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
   label: string
+  autoFocus?: boolean // starts in the text with the cursor at the end, e.g. after a quote
 }) {
   const area = useRef<HTMLTextAreaElement>(null)
   const [mode, setMode] = useState<'write' | 'preview'>('write')
+  useEffect(() => {
+    const el = area.current
+    if (!autoFocus || !el) return
+    el.focus()
+    el.setSelectionRange(el.value.length, el.value.length)
+  }, [autoFocus])
 
   function run(a: Action) {
     const el = area.current
