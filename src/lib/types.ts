@@ -95,6 +95,50 @@ export type Update = {
   update_ideas: { idea_id: number }[]
 }
 
+export type ForumCategory = {
+  id: number
+  name: string
+  description: string
+  position: number
+}
+
+// A discussion is deliberately separate from an idea: ideas are proposals to support; these are
+// conversations to take part in. The list view carries the small amount of denormalised metadata
+// it needs, keeping a forum page to one query.
+export type ForumThread = {
+  id: number
+  slug: string
+  category_id: number
+  title: string
+  body: string
+  author_id: string
+  author_name: string
+  author_avatar: string | null
+  pinned: boolean
+  closed: boolean
+  hidden: boolean
+  created_at: string
+  last_activity_at: string
+  reply_count: number
+  last_reply_name: string | null
+  following: boolean
+  unread: boolean
+}
+
+export type ForumPost = {
+  id: number
+  thread_id: number
+  parent_id: number | null
+  author_id: string
+  author_name: string
+  author_avatar: string | null
+  body: string
+  hidden: boolean
+  hidden_reason: HideReason | null
+  edited_at: string | null
+  created_at: string
+}
+
 export type Invite = { email: string; role: Role; created_at: string }
 
 // A member's name, or the start of their email if it's one you can see, or Member

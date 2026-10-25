@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import { displayName, type Tag, type Comment, type Community, type InviteRequest, type JoinRequest, type Goal, type Idea, type HideReason, type IdeaRole, type Invite, type Notify, type Person, type Profile, type ProfileDetails, type Role, type Status, type Update } from './types'
+import { displayName, type Tag, type Comment, type Community, type ForumCategory, type ForumPost, type ForumThread, type InviteRequest, type JoinRequest, type Goal, type Idea, type HideReason, type IdeaRole, type Invite, type Notify, type Person, type Profile, type ProfileDetails, type Role, type Status, type Update } from './types'
 
 // Turns a Supabase error into something worth showing
 function check<T>({ data, error }: { data: T; error: { message: string } | null }): T {
@@ -200,6 +200,67 @@ export async function setNotify(id: string, prefs: Partial<Notify>) {
 
 export async function deleteComment(id: number) {
   check(await supabase.from('comments').delete().eq('id', id))
+}
+
+export async function loadForumCategories() {
+  return check(await supabase.from('forum_categories').select('*').order('position').order('name')) as ForumCategory[]
+}
+
+export async function loadForumThreads(categoryId?: number) {
+  let q = supabase.from('forum_thread_list').select('*').order('pinned', { ascending: false }).order('last_activity_at', { ascending: false })
+  if (categoryId) q = q.eq('category_id', categoryId)
+  return check(await q) as ForumThread[]
+}
+
+export async function loadForumThread(slug: string) {
+  return check(await supabase.from('forum_thread_list').select('*').eq('slug', slug).single()) as ForumThread
+}
+
+export async function loadForumPosts(threadId: number) {
+  return check(await supabase.from('forum_post_list').select('*').eq('thread_id', threadId).order('created_at')) as ForumPost[]
+}
+
+export async function createForumThread(input: { category_id: number; title: string; body: string }) {
+  const row = check(await supabase.from('forum_threads').insert(input).select('slug').single())
+  return row!.slug as string
+}
+
+export async function addForumPost(threadId: number, body: string, parentId: number | null = null) {
+  check(await supabase.from('forum_posts').insert({ thread_id: threadId, body, parent_id: parentId }))
+}
+
+export async function editForumPost(id: number, body: string) {
+  check(await supabase.from('forum_posts').update({ body }).eq('id', id))
+}
+
+export async function deleteForumPost(id: number) {
+  check(await supabase.from('forum_posts').delete().eq('id', id))
+}
+
+export async function hideForumPost(id: number, reason: HideReason | null) {
+  check(await supabase.from('forum_posts').update({ hidden: reason !== null, hidden_reason: reason }).eq('id', id))
+}
+
+export async function setForumThread(id: number, changes: Partial<Pick<ForumThread, 'pinned' | 'closed' | 'hidden'>>) {
+  check(await supabase.from('forum_threads').update(changes).eq('id', id))
+}
+
+export async function followForumThread(threadId: number, following: boolean) {
+  check(following
+    ? await supabase.from('forum_follows').insert({ thread_id: threadId })
+    : await supabase.from('forum_follows').delete().eq('thread_id', threadId).eq('user_id', (await supabase.auth.getUser()).data.user?.id ?? ''))
+}
+
+export async function markForumRead(threadId: number) {
+  check(await supabase.from('forum_reads').upsert({ thread_id: threadId, read_at: new Date().toISOString() }, { onConflict: 'thread_id,user_id' }))
+}
+
+export function watchForum(threadId: number | null, onChange: () => void) {
+  const channel = supabase.channel(`forum-${threadId ?? 'list'}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_threads' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_posts', ...(threadId ? { filter: `thread_id=eq.${threadId}` } : {}) }, onChange)
+    .subscribe()
+  return () => { supabase.removeChannel(channel) }
 }
 
 export async function publishUpdate(title: string, body: string, ideaIds: number[]) {

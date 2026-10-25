@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowRight, Check, Columns3, Ellipsis, Info, Shield, Lightbulb, Megaphone, Plus, Share2, Users } from 'lucide-react'
+import { ArrowRight, Check, Columns3, Ellipsis, Info, Shield, Lightbulb, Megaphone, MessageCircle, Plus, Share2, Users } from 'lucide-react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { DialogsProvider, useDialogs } from '@/components/shell/Dialogs'
@@ -26,32 +26,36 @@ import { Updates } from '@/views/Updates'
 import { Admin } from '@/views/Admin'
 import { About } from '@/views/About'
 import { People } from '@/views/People'
+import { Forum } from '@/views/Forum'
 import { IdeaSheet, StatusEditor } from '@/sheets/IdeaSheet'
 import { IdeaPage } from '@/sheets/IdeaPage'
 import { NewIdea } from '@/sheets/IdeaForm'
 import { UPDATE_FORM, UpdateForm } from '@/sheets/UpdateForm'
 import { Settings } from '@/sheets/Settings'
+import { NewForumThread } from '@/sheets/ForumThreadForm'
 
-type View = 'ideas' | 'roadmap' | 'updates' | 'people' | 'about' | 'admin'
+type View = 'ideas' | 'roadmap' | 'updates' | 'forum' | 'people' | 'about' | 'admin'
 type Panel =
   | { kind: 'idea'; id: number; editing?: boolean }
   | { kind: 'status'; id: number }
   | { kind: 'new-idea' }
+  | { kind: 'new-thread' }
   | { kind: 'new-update' }
   | { kind: 'settings' }
 
 // The address is / for the ideas list, /view for the others, and /view/ideaId for an idea opened
 // from that view (see lib/route.ts)
-function readAddress(): { view: View; idea: number | null } {
+function readAddress(): { view: View; idea: number | null; thread: string | null } {
   const [v, id] = readPath()
-  const view: View = v === 'roadmap' || v === 'updates' || v === 'people' || v === 'about' || v === 'admin' ? v : 'ideas'
-  return { view, idea: id && /^\d+$/.test(id) ? Number(id) : null }
+  const view: View = v === 'roadmap' || v === 'updates' || v === 'forum' || v === 'people' || v === 'about' || v === 'admin' ? v : 'ideas'
+  const idNumber = id && /^\d+$/.test(id) ? Number(id) : null
+  return { view, idea: view === 'forum' ? null : idNumber, thread: view === 'forum' && id ? id : null }
 }
 
-function writeAddress(view: View, idea: number | null) {
+function writeAddress(view: View, idea: number | null, thread: string | null) {
   // Admin and People keep their own page in the address (/admin/people, /people/<id>); they write that part
   if ((view === 'admin' || view === 'people') && !idea && readPath()[1]) return
-  writePath(idea ? `${view}/${idea}` : view === 'ideas' ? '' : view)
+  writePath(thread ? `forum/${thread}` : idea ? `${view}/${idea}` : view === 'ideas' ? '' : view)
 }
 
 const mark = (
@@ -109,6 +113,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
   const initial = readAddress()
   const [view, setView] = useState<View>(initial.view)
   const [panel, setPanel] = useState<Panel | null>(initial.idea ? { kind: 'idea', id: initial.idea } : null)
+  const [forumThread, setForumThread] = useState<string | null>(initial.thread)
   const [flash, setFlash] = useState<string | null>(null)
   const facilitator = store.me.role === 'facilitator'
   const name = store.community.name
@@ -117,11 +122,12 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
   useEffect(() => { document.title = store.community.name || 'community' }, [store.community.name])
 
   const openIdea = panel?.kind === 'idea' || panel?.kind === 'status' ? panel.id : null
-  useEffect(() => writeAddress(view, openIdea), [view, openIdea])
+  useEffect(() => writeAddress(view, openIdea, forumThread), [view, openIdea, forumThread])
   useEffect(() => onPathChange(() => {
     const a = readAddress()
     setView(a.view)
     setPanel(a.idea ? { kind: 'idea', id: a.idea } : null)
+    setForumThread(a.thread)
   }), [])
 
   useEffect(() => {
@@ -151,6 +157,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
   const title =
     panel?.kind === 'settings' ? 'Settings'
     : panel?.kind === 'new-idea' ? 'New idea'
+    : panel?.kind === 'new-thread' ? 'New discussion'
     : panel?.kind === 'new-update' ? 'New update'
     : panel?.kind === 'status' ? 'Status'
     : undefined
@@ -235,6 +242,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
       setResets(r => r + 1)
     }
     setView(to)
+    setForumThread(null)
     if (panel?.kind === 'idea') setPanel(null)
   }
 
@@ -242,6 +250,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
     { id: 'ideas', label: 'Ideas', icon: Lightbulb },
     { id: 'roadmap', label: 'Roadmap', icon: Columns3 },
     { id: 'updates', label: 'Updates', icon: Megaphone },
+    { id: 'forum', label: 'Forum', icon: MessageCircle },
     { id: 'people', label: 'People', icon: Users },
     { id: 'about', label: 'About', icon: Info },
   ] as const).map(p => ({ ...p, active: view === p.id && panel?.kind !== 'idea', onClick: () => go(p.id) }))
@@ -255,6 +264,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
   function home() {
     setView('ideas')
     setPanel(null)
+    setForumThread(null)
     setSearching(false)
     setHomes(h => h + 1)
     mainRef.current?.scrollTo({ top: 0 })
@@ -274,6 +284,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
   // New idea only on the ideas list; New update on Updates for facilitators; nothing elsewhere
   const action =
     view === 'ideas' ? { label: 'New idea', onClick: () => setPanel({ kind: 'new-idea' }) }
+    : view === 'forum' ? { label: 'New discussion', onClick: () => setPanel({ kind: 'new-thread' }) }
     : view === 'updates' && facilitator ? { label: 'New update', onClick: () => setPanel({ kind: 'new-update' }) }
     : null
 
@@ -302,6 +313,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
         {view === 'ideas' && <Board key={homes} store={store} onOpen={open} onVote={vote} searching={searching} onHome={home} />}
         {view === 'roadmap' && <Roadmap store={store} onOpen={open} openId={openIdea} onError={setFlash} />}
         {view === 'updates' && <Updates store={store} onOpen={open} onChanged={load} />}
+        {view === 'forum' && <Forum store={store} threadId={forumThread} onOpen={setForumThread} onBack={() => setForumThread(null)} />}
         {view === 'people' && <People key={resets} store={store} onEditMe={() => setPanel({ kind: 'settings' })} onOpenIdea={open} />}
         {view === 'about' && <About community={store.community} signedIn />}
         {view === 'admin' && (facilitator ? <Admin key={resets} store={store} onChanged={load} /> : <p className="mx-auto max-w-2xl px-5 text-sm text-muted-foreground">Only facilitators can see this.</p>)}
@@ -318,6 +330,9 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
         {panel?.kind === 'new-idea' && (
           <NewIdea store={store} onOpen={open} onPosted={id => { load().then(() => setPanel({ kind: 'idea', id })); setFlash('Idea posted') }} />
         )}
+        {panel?.kind === 'new-thread' && (
+          <NewForumThread onPosted={id => { setForumThread(id); close(); setFlash('Discussion posted') }} />
+        )}
         {panel?.kind === 'new-update' && (
           <UpdateForm store={store} onDone={() => { load(); close(); setFlash('Update published') }} />
         )}
@@ -327,7 +342,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
 
       <ActionDock phone={phone} panelOpen={sheetOpen}>
         {flash && <p role="status" className="panel rounded-full px-3 py-1.5 text-xs text-foreground motion-safe:animate-in motion-safe:fade-in-0">{flash}</p>}
-        {action && openIdea === null && (
+        {action && openIdea === null && forumThread === null && (
           // One button, so no padding: its hover fills the whole circle.
           // Fades with the page while a panel is open; a click there falls through and closes the panel
           <Toolbar aria-label="Actions" className={cn('overflow-hidden p-0 transition-[opacity,filter] duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] motion-reduce:transition-none max-sm:border-border max-sm:bg-[var(--panel)] max-sm:backdrop-blur-xl!',
