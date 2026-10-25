@@ -211,6 +211,9 @@ const forum = {
   posts: [
     { id: 1, thread_id: 1, parent_id: null, author_id: 'niamh', body: 'Libraries and Intreo offices have been great for us. Ask the staff to help you meet people face to face.', hidden: false, hidden_reason: null, edited_at: null, created_at: ago(10) },
     { id: 2, thread_id: 1, parent_id: 1, author_id: 'aoife', body: 'Good shout. Did you need approval from the office manager first?', hidden: false, hidden_reason: null, edited_at: null, created_at: ago(4) },
+    { id: 4, thread_id: 1, parent_id: 2, author_id: 'niamh', body: 'No, the staff were glad to help. We just rang ahead the week before.', hidden: false, hidden_reason: null, edited_at: null, created_at: ago(3) },
+    { id: 5, thread_id: 1, parent_id: 4, author_id: 'ciaran', body: 'Same at Revenue public offices. Bring printed consent forms; not everyone wants to sign on a tablet.', hidden: false, hidden_reason: null, edited_at: null, created_at: ago(2) },
+    { id: 6, thread_id: 1, parent_id: null, author_id: 'ciaran', body: 'Has anyone tried paying for travel? It made a big difference for rural participants.', hidden: false, hidden_reason: null, edited_at: null, created_at: ago(1) },
     { id: 3, thread_id: 2, parent_id: null, author_id: 'ciaran', body: 'Hi all, content designer at Revenue, working on PAYE guidance.', hidden: false, hidden_reason: null, edited_at: null, created_at: ago(20) },
   ] as Omit<ForumPost, 'author_name' | 'author_avatar'>[],
   follows: new Set<number>([2]),
@@ -245,7 +248,7 @@ export async function createForumThread(input: { category_id: number; title: str
 }
 export async function addForumPost(threadId: number, body: string, parentId: number | null = null) {
   const now = new Date().toISOString()
-  forum.posts.push({ id: forum.posts.length + 1, thread_id: threadId, parent_id: parentId, author_id: 'me', body, hidden: false, hidden_reason: null, edited_at: null, created_at: now })
+  forum.posts.push({ id: Math.max(0, ...forum.posts.map(p => p.id)) + 1, thread_id: threadId, parent_id: parentId, author_id: 'me', body, hidden: false, hidden_reason: null, edited_at: null, created_at: now })
   const t = forum.threads.find(x => x.id === threadId); if (t) t.last_activity_at = now
 }
 export async function editForumPost(id: number, body: string) { const p = forum.posts.find(x => x.id === id); if (p) p.body = body }

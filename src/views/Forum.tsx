@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, BellOff, ChevronLeft, CornerDownRight, Ellipsis, Lock, Pin, Reply } from 'lucide-react'
+import { Bell, BellOff, ChevronLeft, Ellipsis, Lock, Minus, Pin, Plus, Reply } from 'lucide-react'
 import { Avatar } from '@/components/shell/Avatar'
 import { Markdown, plain } from '@/components/shell/Markdown'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,8 @@ import { HIDE_REASONS, when, type ForumCategory, type ForumPost, type ForumThrea
 import type { Store } from '@/lib/data'
 
 const ALL = 0
+const COMPACT = 'community:forum-compact' // compact replies, remembered on this device
+const MAX_INDENT = 6 // deeper replies stop indenting, so text keeps room
 
 export function Forum({ store, threadId, onOpen, onBack }: { store: Store; threadId: string | null; onOpen: (slug: string) => void; onBack: () => void }) {
   return threadId ? <Thread store={store} slug={threadId} onBack={onBack} /> : <ForumList onOpen={onOpen} />
@@ -75,7 +77,16 @@ function Thread({ store, slug, onBack }: { store: Store; slug: string; onBack: (
     } catch (e) { setError((e as Error).message) }
   }, [slug])
   useEffect(() => { load(); return watchForum(thread?.id ?? null, load) }, [thread?.id, load])
-  const byId = useMemo(() => new Map(posts.map(p => [p.id, p])), [posts])
+  // Replies by the post they answer; the top level is null
+  const children = useMemo(() => {
+    const m = new Map<number | null, ForumPost[]>()
+    posts.forEach(p => m.set(p.parent_id, [...(m.get(p.parent_id) ?? []), p]))
+    return m
+  }, [posts])
+  const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
+  const toggle = (id: number) => setCollapsed(c => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const [compact, setCompactState] = useState(() => { try { return localStorage.getItem(COMPACT) === '1' } catch { return false } })
+  const setCompact = (v: boolean) => { setCompactState(v); try { localStorage.setItem(COMPACT, v ? '1' : '0') } catch { /* private mode */ } }
 
   const back = (
     <button type="button" onClick={onBack} className="-ml-1 inline-flex items-center gap-1 self-start rounded-md px-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
@@ -108,14 +119,25 @@ function Thread({ store, slug, onBack }: { store: Store; slug: string; onBack: (
       <ol className="flex flex-col">
         <Post id="post-0" author={thread.author_name} avatar={thread.author_avatar} at={thread.created_at} body={thread.body}
           onReply={open ? () => setReplying({ parent: null }) : undefined} />
-        {posts.map(post => (
-          <Post key={post.id} id={`post-${post.id}`} author={post.author_name} avatar={post.author_avatar} at={post.created_at}
-            body={post.hidden ? null : post.body} hiddenReason={post.hidden ? HIDE_REASONS[post.hidden_reason ?? 'off-topic'] : undefined}
-            replyTo={post.parent_id ? byId.get(post.parent_id) : undefined}
-            onReply={open && !post.hidden ? () => setReplying({ parent: post }) : undefined}
-            menu={facilitator ? <PostMenu post={post} facilitator={facilitator} onChanged={load} /> : undefined} />
-        ))}
       </ol>
+
+      {/* Replies as a thread: each under the post it answers, foldable, roomy or compact */}
+      {posts.length > 0 && (<>
+        <div className="flex items-center justify-between gap-3 border-t border-border pt-4 pb-1">
+          <p className="text-xs text-muted-foreground">{posts.length} {posts.length === 1 ? 'reply' : 'replies'}</p>
+          <button type="button" aria-pressed={compact} onClick={() => setCompact(!compact)}
+            className="h-8 rounded-full px-3 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-accent aria-pressed:text-foreground">
+            Compact
+          </button>
+        </div>
+        <ol className="flex flex-col pb-2">
+          {(children.get(null) ?? []).map(post => (
+            <Comment key={post.id} post={post} tree={children} depth={0} compact={compact}
+              collapsed={collapsed} onToggle={toggle} canReply={open} facilitator={facilitator}
+              onReply={p => setReplying({ parent: p })} onChanged={load} />
+          ))}
+        </ol>
+      </>)}
 
       <div className="flex items-center justify-between gap-4 border-t border-border py-5">
         {open ? (<>
@@ -135,10 +157,10 @@ function Thread({ store, slug, onBack }: { store: Store; slug: string; onBack: (
   )
 }
 
-// One post in the stream: photo, name and when, then the text, then Reply
-function Post({ id, author, avatar, at, body, hiddenReason, replyTo, onReply, menu }: {
+// The opening post: photo, name and when, then the text, then Reply
+function Post({ id, author, avatar, at, body, hiddenReason, onReply, menu }: {
   id: string; author: string; avatar: string | null; at: string; body: string | null; hiddenReason?: string
-  replyTo?: ForumPost; onReply?: () => void; menu?: React.ReactNode
+  onReply?: () => void; menu?: React.ReactNode
 }) {
   const action = 'inline-flex items-center gap-1.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
   return (
@@ -148,12 +170,6 @@ function Post({ id, author, avatar, at, body, hiddenReason, replyTo, onReply, me
         <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
           <span className="text-foreground">{author}</span>
           <span className="text-xs text-muted-foreground">{when(at)}</span>
-          {replyTo && (
-            <button type="button" onClick={() => document.getElementById(`post-${replyTo.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className={cn(action, 'text-xs text-muted-foreground')}>
-              <CornerDownRight className="size-3" strokeWidth={1.5} aria-hidden />Replying to {replyTo.author_name}
-            </button>
-          )}
         </p>
         {body === null
           ? <p className="text-sm text-muted-foreground">Hidden as {hiddenReason?.toLowerCase()}.</p>
@@ -165,6 +181,69 @@ function Post({ id, author, avatar, at, body, hiddenReason, replyTo, onReply, me
           </div>
         )}
       </div>
+    </li>
+  )
+}
+
+// One reply and the replies under it. The line down the left (and the –) folds the branch away to one
+// line. Compact drops the photo and puts name, time and actions on one small line.
+function Comment({ post, tree, depth, compact, collapsed, onToggle, canReply, facilitator, onReply, onChanged }: {
+  post: ForumPost; tree: Map<number | null, ForumPost[]>; depth: number; compact: boolean
+  collapsed: Set<number>; onToggle: (id: number) => void; canReply: boolean; facilitator: boolean
+  onReply: (p: ForumPost) => void; onChanged: () => void
+}) {
+  const replies = tree.get(post.id) ?? []
+  const folded = collapsed.has(post.id)
+  const count = (p: ForumPost): number => (tree.get(p.id) ?? []).reduce((n, c) => n + 1 + count(c), 0)
+  const hidden = folded ? count(post) : 0
+  const action = 'inline-flex items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
+  const indent = depth > 0 && depth <= MAX_INDENT
+  return (
+    <li id={`post-${post.id}`} className={cn('relative scroll-mt-24', indent && 'ml-4 sm:ml-6')}>
+      {/* The thread line: tap to fold this branch */}
+      {replies.length > 0 && !folded && (
+        <button type="button" aria-label={`Fold ${post.author_name}’s reply`} onClick={() => onToggle(post.id)}
+          className={cn('group absolute bottom-2 w-4 outline-none', compact ? 'top-8 left-0' : 'top-14 left-2.5')}>
+          <span className="mx-auto block h-full w-px bg-border transition-colors group-hover:bg-muted-foreground" />
+        </button>
+      )}
+      <article className={cn('flex gap-3', compact ? 'py-2' : 'py-4')}>
+        {!compact && <Avatar name={post.author_name} url={post.author_avatar} className="size-9 shrink-0" />}
+        <div className={cn('flex min-w-0 flex-1 flex-col', compact ? 'gap-1' : 'gap-1.5')}>
+          <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+            <button type="button" onClick={() => onToggle(post.id)} aria-label={folded ? 'Unfold' : 'Fold'} aria-expanded={!folded}
+              className="-ml-0.5 grid size-4 place-items-center rounded-sm border border-border outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+              {folded ? <Plus className="size-3" strokeWidth={1.5} /> : <Minus className="size-3" strokeWidth={1.5} />}
+            </button>
+            <span className="text-sm text-foreground">{post.author_name}</span>
+            <span>{when(post.created_at)}</span>
+            {folded && hidden > 0 && <span>· {hidden} more {hidden === 1 ? 'reply' : 'replies'}</span>}
+            {compact && !folded && canReply && !post.hidden && (
+              <button type="button" onClick={() => onReply(post)} className={action}>Reply</button>
+            )}
+            {compact && !folded && facilitator && <PostMenu post={post} facilitator={facilitator} onChanged={onChanged} />}
+          </p>
+          {!folded && (<>
+            {post.hidden
+              ? <p className="text-sm text-muted-foreground">Hidden as {HIDE_REASONS[post.hidden_reason ?? 'off-topic'].toLowerCase()}.</p>
+              : <Markdown className={compact ? 'text-sm' : 'text-base'}>{post.body}</Markdown>}
+            {!compact && (canReply || facilitator) && (
+              <div className="flex items-center gap-4 pt-0.5 text-xs text-muted-foreground">
+                {canReply && !post.hidden && <button type="button" onClick={() => onReply(post)} className={action}><Reply className="size-3.5" strokeWidth={1.5} aria-hidden />Reply</button>}
+                {facilitator && <PostMenu post={post} facilitator={facilitator} onChanged={onChanged} />}
+              </div>
+            )}
+          </>)}
+        </div>
+      </article>
+      {!folded && replies.length > 0 && (
+        <ol className={cn('flex flex-col', !compact && 'pl-0')}>
+          {replies.map(r => (
+            <Comment key={r.id} post={r} tree={tree} depth={depth + 1} compact={compact} collapsed={collapsed} onToggle={onToggle}
+              canReply={canReply} facilitator={facilitator} onReply={onReply} onChanged={onChanged} />
+          ))}
+        </ol>
+      )}
     </li>
   )
 }
