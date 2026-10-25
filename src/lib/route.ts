@@ -1,7 +1,7 @@
 // Clean addresses: /, /roadmap, /people, /ideas/12, /roadmap/12, /admin/people. GitHub Pages serves the
 // app for any path through 404.html (see vite.config.ts). The demo is a single file, demo.html, so it
-// keeps the same paths after a # instead.
-const hashMode = /\.html$/.test(location.pathname)
+// keeps the same paths after a # instead, whether opened as /demo.html or /demo.
+const hashMode = /\.html$|^\/demo\/?$/.test(location.pathname)
 
 // Older links used #ideas/12; move them to /ideas/12. Leaves sign-in returns (#access_token=…) alone.
 if (!hashMode && /^#[a-z][\w/-]*$/i.test(location.hash)) {
