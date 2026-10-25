@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import Fuse from 'fuse.js'
-import { X } from 'lucide-react'
+import { ChevronDown, SquarePen, X } from 'lucide-react'
+import {
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { MarkdownEditor } from '@/components/shell/MarkdownEditor'
 import { ToolButton } from '@/components/shell/ToolButton'
@@ -27,9 +30,7 @@ function keepDraft(kind: ComposeKind, d: Draft | null) {
   try { if (d) localStorage.setItem(draftKey(kind), JSON.stringify(d)); else localStorage.removeItem(draftKey(kind)) } catch { /* private mode */ }
 }
 
-// Writing a new idea or forum discussion, as a page that takes over the screen: a wide column for
-// the title, where it goes (discussion areas for an idea, one category for a discussion) and the
-// text, with Cancel at the top and Post at the bottom, both kept in view
+// Writing a new idea or forum discussion, as a page that takes over the screen
 export function Compose({ kind, store, onClose, onPosted, onOpen }: {
   kind: ComposeKind
   store: Store
@@ -81,96 +82,96 @@ export function Compose({ kind, store, onClose, onPosted, onOpen }: {
 
   // Escape cancels, as the X does
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[role="alertdialog"]')) cancel() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[role="alertdialog"], [role="menu"]')) cancel() }
     addEventListener('keydown', onKey)
     return () => removeEventListener('keydown', onKey)
   })
 
-  return (
-    <div className="page-in fixed inset-0 z-50 overflow-y-auto bg-background" role="dialog" aria-modal="true" aria-label={LABEL[kind].name}>
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-4 bg-background/90 px-5 backdrop-blur"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)', height: 'calc(env(safe-area-inset-top, 0px) + 64px)' }}>
-        <ToolButton icon={X} label="Cancel" side="bottom" onClick={cancel} className="-ml-2" />
-        <p className="truncate text-sm text-muted-foreground">{started ? 'Draft kept on this device' : LABEL[kind].name}</p>
-        <span className="size-10" aria-hidden />
-      </header>
+  const chosen = kind === 'discussion'
+    ? categories.find(c => c.id === d.category)?.name
+    : store.tags.filter(t => d.tags.includes(t.id)).map(t => t.name).join(', ')
+  const row = 'flex w-full items-center gap-3 border-b border-border px-5'
 
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-5 pt-6 pb-6">
-        <textarea value={d.title} onChange={e => set({ title: e.target.value.replace(/\n/g, ' ') })} maxLength={LABEL[kind].titleMax} rows={1} autoFocus
+  // Rows from top to bottom, each on a hairline, as in Discourse's composer: what this is and close;
+  // where it goes; the title; the text, filling the space; formatting; Discard and Post
+  return (
+    <div className="page-in fixed inset-0 z-50 flex flex-col bg-background" role="dialog" aria-modal="true" aria-label={LABEL[kind].name}
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col sm:border-x sm:border-border">
+        <header className={cn(row, 'h-14 justify-between pr-3')}>
+          <h1 className="inline-flex items-center gap-2 text-sm text-foreground">
+            <SquarePen className="size-4" strokeWidth={1.5} aria-hidden />{LABEL[kind].name}
+          </h1>
+          <ToolButton icon={X} label="Close" side="bottom" onClick={cancel} className="size-9 [&_svg]:size-4" />
+        </header>
+
+        {/* Where it goes: one category for a discussion, up to three areas for an idea */}
+        {(kind === 'discussion' ? categories.length > 0 : store.tags.length > 0) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger className={cn(row, 'h-14 justify-between text-left text-base outline-none hover:bg-card focus-visible:bg-card md:text-sm data-[state=open]:bg-card')}>
+              <span className={cn('truncate', chosen ? 'text-foreground' : 'text-muted-foreground')}>
+                {chosen || (kind === 'discussion' ? 'Category…' : 'Discussion areas…')}
+              </span>
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-(--radix-dropdown-menu-trigger-width)">
+              {kind === 'discussion' ? (
+                <DropdownMenuRadioGroup value={String(d.category ?? '')} onValueChange={v => set({ category: Number(v) })}>
+                  {categories.map(c => (
+                    <DropdownMenuRadioItem key={c.id} value={String(c.id)} className="py-2">
+                      <span className="flex flex-col">
+                        <span className="text-sm">{c.name}</span>
+                        {c.description && <span className="text-xs text-muted-foreground">{c.description}</span>}
+                      </span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              ) : (<>
+                {store.tags.map(t => {
+                  const on = d.tags.includes(t.id)
+                  return (
+                    <DropdownMenuCheckboxItem key={t.id} checked={on} disabled={!on && d.tags.length >= MAX_TAGS_PER_IDEA} onSelect={e => e.preventDefault()}
+                      onCheckedChange={c => set({ tags: c ? [...d.tags, t.id] : d.tags.filter(x => x !== t.id) })} className="h-10 text-sm">
+                      {t.name}
+                    </DropdownMenuCheckboxItem>
+                  )
+                })}
+                <p className="px-3 py-1.5 text-xs text-muted-foreground">Up to {MAX_TAGS_PER_IDEA}</p>
+              </>)}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        <input value={d.title} onChange={e => set({ title: e.target.value })} maxLength={LABEL[kind].titleMax} autoFocus
           placeholder="Title" aria-label="Title" enterKeyHint="next"
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); document.querySelector<HTMLTextAreaElement>('[aria-label="Details"]')?.focus() } }}
-          className="field-sizing-content w-full resize-none bg-transparent text-[length:calc(var(--text-sm)*1.75)] leading-tight text-foreground outline-none placeholder:text-muted-foreground" />
+          className={cn(row, 'h-14 bg-transparent text-lg text-foreground outline-none placeholder:text-muted-foreground')} />
 
         {similar.length > 0 && (
-          <div className="-mt-2 flex flex-col">
-            <p className="pb-1 text-xs text-muted-foreground">Already suggested? Support it instead</p>
+          <div className="flex flex-col border-b border-border px-5 py-2">
+            <p className="py-1 text-xs text-muted-foreground">Already suggested? Support it instead</p>
             {similar.map(i => (
               <button key={i.id} type="button" onClick={() => onOpen(i.id)}
-                className="flex items-baseline justify-between gap-3 border-t border-border py-2.5 text-left text-sm text-foreground outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
-                <span className="min-w-0">{i.title}</span>
+                className="flex items-baseline justify-between gap-3 py-1.5 text-left text-sm text-foreground outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                <span className="min-w-0 truncate">{i.title}</span>
                 <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">{i.vote_count}</span>
               </button>
             ))}
           </div>
         )}
 
-        {kind === 'discussion' && categories.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-xs text-muted-foreground">Category</p>
-            <div role="radiogroup" aria-label="Category" className="flex flex-wrap gap-2">
-              {categories.map(c => (
-                <Chip key={c.id} role="radio" on={d.category === c.id} title={c.description || undefined} onClick={() => set({ category: c.id })}>{c.name}</Chip>
-              ))}
-            </div>
-            {d.category && <p className="text-xs text-muted-foreground">{categories.find(c => c.id === d.category)?.description}</p>}
-          </div>
-        )}
+        <MarkdownEditor label="Details" value={d.body} onChange={body => set({ body: body.slice(0, 12000) })} placeholder={LABEL[kind].placeholder} />
 
-        {kind === 'idea' && store.tags.length > 0 && (
-          <div className="flex flex-col gap-4">
-            {store.tags.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-muted-foreground">Discussion area <span className="font-mono tabular-nums">{d.tags.length}/{MAX_TAGS_PER_IDEA}</span></p>
-                <div role="group" aria-label="Discussion area" className="flex flex-wrap gap-2">
-                  {store.tags.map(t => {
-                    const on = d.tags.includes(t.id)
-                    return (
-                      <Chip key={t.id} on={on} disabled={!on && d.tags.length >= MAX_TAGS_PER_IDEA}
-                        onClick={() => set({ tags: on ? d.tags.filter(x => x !== t.id) : [...d.tags, t.id] })}>{t.name}</Chip>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <MarkdownEditor label="Details" value={d.body} onChange={body => set({ body: body.slice(0, 12000) })} minRows={16}
-          placeholder={LABEL[kind].placeholder}
-          toolbarClassName="sticky top-[calc(env(safe-area-inset-top,0px)+64px)] z-[5] border-t" />
-
-      </div>
-
-      {/* Post, at the end of the writing column, kept in view at the bottom */}
-      <div className="sticky bottom-0 bg-background/90 backdrop-blur" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-end gap-4 px-5 py-3">
-          {error && <p role="alert" className="mr-auto text-xs text-destructive">{error}</p>}
+        <footer className="flex items-center justify-end gap-2 border-t border-border px-3 py-2.5">
+          {error && <p role="alert" className="mr-auto pl-2 text-xs text-destructive">{error}</p>}
+          {!error && started && <p className="mr-auto pl-2 text-xs text-muted-foreground">Draft kept on this device</p>}
+          <Button variant="ghost" onClick={cancel} className="h-9 rounded-full px-4 text-sm">Discard</Button>
           <Button onClick={post} disabled={busy || d.title.trim().length < 3 || (kind === 'discussion' && !d.category)} className="h-9 rounded-full px-5 text-sm">
             {busy ? 'Posting' : 'Post'}
           </Button>
-        </div>
+        </footer>
       </div>
     </div>
   )
 }
 
-// A small choice chip: filled when chosen
-function Chip({ on, role, children, ...props }: { on: boolean; role?: 'radio' } & Omit<React.ComponentProps<'button'>, 'role'>) {
-  return (
-    <button type="button" role={role} aria-checked={role ? on : undefined} aria-pressed={role ? undefined : on} {...props}
-      className={cn('h-7 rounded-full border px-3 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30',
-        on ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-foreground hover:bg-accent')}>
-      {children}
-    </button>
-  )
-}
