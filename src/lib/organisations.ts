@@ -153,3 +153,30 @@ export const ETBS = [
 ]
 
 export const ORGANISATIONS = [...DEPARTMENTS, ...AGENCIES, ...LOCAL_AUTHORITIES, ...HIGHER_EDUCATION, ...ETBS]
+
+// Short forms for People and profiles, with the full name on hover. Departments use their usual
+// short form, or one word where that's clearer; anything with a short form in brackets uses that.
+const DEPARTMENT_SHORT: Record<string, string> = {
+  'Department of Agriculture, Food and the Marine': 'DAFM',
+  'Department of Children, Disability and Equality': 'DCDE',
+  'Department of Climate, Energy and the Environment': 'DCEE',
+  'Department of Culture, Communications and Sport': 'DCCS',
+  'Department of Defence': 'Defence',
+  'Department of Education and Youth': 'Education',
+  'Department of Enterprise, Tourism and Employment': 'DETE',
+  'Department of Finance': 'Finance',
+  'Department of Foreign Affairs and Trade': 'DFAT',
+  'Department of Further and Higher Education, Research, Innovation and Science': 'DFHERIS',
+  'Department of Health': 'Health',
+  'Department of Housing, Local Government and Heritage': 'DHLGH',
+  'Department of Justice, Home Affairs and Migration': 'Justice',
+  'Department of Public Expenditure, Infrastructure, Public Service Reform and Digitalisation': 'DPER',
+  'Department of Rural and Community Development and the Gaeltacht': 'DRCDG',
+  'Department of Social Protection': 'DSP',
+  'Department of the Taoiseach': 'Taoiseach',
+  'Department of Transport': 'Transport',
+}
+
+export function shortOrganisation(name: string) {
+  return DEPARTMENT_SHORT[name] ?? name.match(/\(([^)]+)\)$/)?.[1] ?? name
+}

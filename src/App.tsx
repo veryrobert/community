@@ -226,16 +226,28 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
     )
     : undefined
 
+  // Going to a place; choosing the one you're already on takes it back to its start (People's list
+  // from a profile, Admin's list from a section)
+  const [resets, setResets] = useState(0)
+  function go(to: View) {
+    if (view === to && panel?.kind !== 'idea') {
+      writePath(to === 'ideas' ? '' : to)
+      setResets(r => r + 1)
+    }
+    setView(to)
+    if (panel?.kind === 'idea') setPanel(null)
+  }
+
   const places = ([
     { id: 'ideas', label: 'Ideas', icon: Lightbulb },
     { id: 'roadmap', label: 'Roadmap', icon: Columns3 },
     { id: 'updates', label: 'Updates', icon: Megaphone },
     { id: 'people', label: 'People', icon: Users },
     { id: 'about', label: 'About', icon: Info },
-  ] as const).map(p => ({ ...p, active: view === p.id && panel?.kind !== 'idea', onClick: () => { setView(p.id); if (panel?.kind === 'idea') setPanel(null) } }))
+  ] as const).map(p => ({ ...p, active: view === p.id && panel?.kind !== 'idea', onClick: () => go(p.id) }))
   // Facilitators reach Admin from its own button in the top bar, not the menu
   const admin = facilitator
-    ? { id: 'admin', label: 'Admin', icon: Shield, active: view === 'admin' && panel?.kind !== 'idea', onClick: () => { setView('admin'); if (panel?.kind === 'idea') setPanel(null) } }
+    ? { id: 'admin', label: 'Admin', icon: Shield, active: view === 'admin' && panel?.kind !== 'idea', onClick: () => go('admin') }
     : undefined
 
   // Home is the ideas list in its default view: a new key resets its order, filters and search
@@ -290,9 +302,9 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
         {view === 'ideas' && <Board key={homes} store={store} onOpen={open} onVote={vote} searching={searching} onHome={home} />}
         {view === 'roadmap' && <Roadmap store={store} onOpen={open} openId={openIdea} onError={setFlash} />}
         {view === 'updates' && <Updates store={store} onOpen={open} onChanged={load} />}
-        {view === 'people' && <People store={store} onEditMe={() => setPanel({ kind: 'settings' })} onOpenIdea={open} />}
+        {view === 'people' && <People key={resets} store={store} onEditMe={() => setPanel({ kind: 'settings' })} onOpenIdea={open} />}
         {view === 'about' && <About community={store.community} signedIn />}
-        {view === 'admin' && (facilitator ? <Admin store={store} onChanged={load} /> : <p className="mx-auto max-w-2xl px-5 text-sm text-muted-foreground">Only facilitators can see this.</p>)}
+        {view === 'admin' && (facilitator ? <Admin key={resets} store={store} onChanged={load} /> : <p className="mx-auto max-w-2xl px-5 text-sm text-muted-foreground">Only facilitators can see this.</p>)}
         </>)}
         </div>
       </main>

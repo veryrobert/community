@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowUpRight, BadgeCheck, ChevronDown, ChevronLeft, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { readPath, writePath } from '@/lib/route'
+import { shortOrganisation } from '@/lib/organisations'
 import { StatusLabel } from './IdeaRow'
 import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/shell/Avatar'
@@ -112,7 +113,7 @@ function Person({ m, me, onOpen }: { m: Profile; me: boolean; onOpen: () => void
             )}
           </span>
           {(m.job_title || m.organisation) && (
-            <span className="text-xs text-muted-foreground">{[m.job_title, m.organisation].filter(Boolean).join(', ')}</span>
+            <span className="text-xs text-muted-foreground"><Role m={m} /></span>
           )}
           {m.design_area && <span className="text-xs text-muted-foreground">{m.design_area}</span>}
         </span>
@@ -161,7 +162,7 @@ function Profile({ m, me, store, onBack, onEditMe, onOpenIdea }: {
                 <BadgeCheck className="size-5 text-muted-foreground" strokeWidth={1.5} role="img" aria-label="Facilitator"><title>Facilitator</title></BadgeCheck>
               )}
             </h1>
-            {(m.job_title || m.organisation) && <p className="text-sm text-muted-foreground">{[m.job_title, m.organisation].filter(Boolean).join(', ')}</p>}
+            {(m.job_title || m.organisation) && <p className="text-sm text-muted-foreground"><Role m={m} /></p>}
             {m.design_area && <p className="text-sm text-muted-foreground">{m.design_area}</p>}
           </div>
         </div>
@@ -206,4 +207,14 @@ function Profile({ m, me, store, onBack, onEditMe, onOpenIdea }: {
       </>)}
     </div>
   )
+}
+
+// Job title and the organisation's short form, with the full name on hover
+function Role({ m }: { m: Profile }) {
+  const short = m.organisation ? shortOrganisation(m.organisation) : ''
+  return (<>
+    {m.job_title}
+    {m.job_title && short && ', '}
+    {short && <abbr title={short === m.organisation ? undefined : m.organisation} className="no-underline">{short}</abbr>}
+  </>)
 }
