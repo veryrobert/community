@@ -46,13 +46,14 @@ type Panel =
 
 // The address is / for the ideas list, /view for the others, and /view/ideaId for an idea opened
 // from that view (see lib/route.ts)
-// The forum is only in the demo until its tables are in the database (VITE_FORUM=on turns it on)
+// The forum, and the full-page editor that came with it, are only in the demo until the forum's
+// tables are in the database (VITE_FORUM=on turns them on)
 const FORUM = import.meta.env.VITE_FORUM === 'on'
 
 function readAddress(): { view: View; idea: number | null; thread: string | null } {
   const [v, id] = readPath()
   const forumView = v === 'forum' || v === 'new-discussion'
-  const view: View = (forumView && FORUM) || v === 'roadmap' || v === 'updates' || v === 'people' || v === 'about' || v === 'admin' || v === 'new' ? v : 'ideas'
+  const view: View = (forumView && FORUM) || v === 'roadmap' || v === 'updates' || v === 'people' || v === 'about' || v === 'admin' || (v === 'new' && FORUM) ? v : 'ideas'
   const idNumber = id && /^\d+$/.test(id) ? Number(id) : null
   return { view, idea: view === 'forum' ? null : idNumber, thread: view === 'forum' && id ? id : null }
 }
@@ -288,7 +289,7 @@ function Main({ store, load, vote }: { store: Store; load: () => Promise<void>; 
 
   // New idea only on the ideas list; New update on Updates for facilitators; nothing elsewhere
   const action =
-    view === 'ideas' ? { label: 'New idea', onClick: () => setView('new') }
+    view === 'ideas' ? { label: 'New idea', onClick: () => (FORUM ? setView('new') : setPanel({ kind: 'new-idea' })) }
     : view === 'forum' && !forumThread ? { label: 'New discussion', onClick: () => setView('new-discussion') }
     : view === 'updates' && facilitator ? { label: 'New update', onClick: () => setPanel({ kind: 'new-update' }) }
     : null
